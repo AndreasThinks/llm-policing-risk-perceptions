@@ -11,7 +11,7 @@ if scenarios not in db.t:
     scenarios.create(id=int, title=str, full_text=str, risk_description=str, pk='id')
     ages.create(id=int, age=int, pk='id')
     ethnicities.create(id=int, ethnicity=str, pk='id')
-    human_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=int, pk='id')
+    human_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=float, is_police_officer=bool, is_police_family=bool, is_public=bool, is_uk=bool, is_us=bool, is_elsewhere=bool, pk='id')
     ai_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=int, linked_human_submission=int,pk='id')
     llms.create(id=int, model=str, pk='id')
 

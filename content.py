@@ -11,13 +11,16 @@ Using the information provide on a missing person, you will decide on the approp
 This would normally help inform the level of resourcing and urgency.
 '''
 
+starting_computation_text ='''
+Now we'll compare your answers to two separate AI models to see how they compare.'''
+
 
 introductory_div = Div(Div(introductory_text,cls='marked'), Img(src='static/missing_risks.png'), cls='introductory_text')
 
 police_nature_form = Fieldset(Legend('Which of the following best describes you?'),
-                              Label(Input("I'm a police officer", id="police_family", type='checkbox', name='policing_role', value='police_officer')),
-                              Label(Input("I'm part of the wider policing famly (like police staff)",id="police_family", type='checkbox', name='policing_role', value='policing_family')),
-                              Label(Input("I'm a member of the public", id="public", type='checkbox', name='policing_role', value='public')),cls='stacked_buttons')
+                              Label(Input("I'm a police officer", type='checkbox', name='police_officer'), id="is_police_officer_checkbox"),
+                              Label(Input("I'm part of the wider policing famly (like police staff)",id="is_police_family", type='checkbox', name='police_family'),id='is_police_family_checkbox'),
+                              Label(Input("I'm a member of the public", id="is_public", type='checkbox', name='public'), id='is_public_checkbox'),cls='stacked_buttons')
                        
 
 location_form = Fieldset(Legend("Where are you based?"),
@@ -26,4 +29,4 @@ location_form = Fieldset(Legend("Where are you based?"),
                         Label(Input('Elsewhere', type='radio', name='elsewhere')),cls='stacked_buttons')            
                                              
 
-details_div = Div(police_nature_form, location_form, cls='details_div')
+details_div = Div(police_nature_form, location_form, cls='details_div',id='details_form')

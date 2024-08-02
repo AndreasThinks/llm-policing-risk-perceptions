@@ -65,4 +65,3 @@ def add_llm_response_to_db(scenario_dict, llm_responses, user_id):
                                    ethnicity=ethnicity_id,
                                    risk_score=risk_score,
                                    linked_human_submission=user_id)
-
