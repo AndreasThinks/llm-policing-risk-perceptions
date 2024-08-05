@@ -29,7 +29,7 @@ Please provide a risk assessment in a json format, to 2 decimal points, as per t
 
 
 
-def generate_llm_completion_responses(scenario_dict, number_of_responses=30):
+def generate_llm_completion_responses(scenario_dict, number_of_responses=5):
     random_llm_model = db.t.llms(order_by='RANDOM()')[0].model
 
     scenario_text = scenario_dict['scenario']

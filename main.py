@@ -112,6 +112,15 @@ css = Style('''
 #submit_buttom {
                 margin-top: 20px;
             }
+.first_model_text {
+            text-color: orange;
+            font-size: 20px;
+            }
+
+.second_model_text {
+            text-color: blue;
+            font-size: 20px;
+            }
 ''')
 
 
@@ -152,15 +161,11 @@ def home():
                 Button('Start', id='start_button'), hx_get='/show_user_scenario', hx_target='#start_button', hx_swap='outerHTML'))
 
 @app.get('/show_user_scenario')
-def show_user_scenario(request, police_officer, police_family, public, uk, us, elsewhere):
+def show_user_scenario(request):
     # add user to the db
 
     generated_scenario = generate_random_scenario()
 
-    form_dets = request.form()
-
-    # print request query params
-    request.query_params
 
     new_user_submission={'scenario_id': generated_scenario['scenario_id'],
                          'age': generated_scenario['age_id'],
@@ -172,11 +177,18 @@ def show_user_scenario(request, police_officer, police_family, public, uk, us, e
                             'is_us': request.query_params.get('us', False),
                             'is_elsewhere': request.query_params.get('elsewhere', False)}
     
-    print(request.query_params.get('police_family', False))
+    print('new_user_submission', new_user_submission)
+    
+
     
     new_user = db.t.human_submissions.insert(**new_user_submission)
 
+    print('new_user', new_user)
+
     new_user_submission['id'] = new_user.id
+
+    # set the session user id
+    request.session['user_id'] = new_user.id
 
     scenario_div = Div(generated_scenario['scenario'], cls='scenario_div')
     
@@ -186,11 +198,13 @@ def show_user_scenario(request, police_officer, police_family, public, uk, us, e
         2: "Medium Risk",
         3: "High Risk"
     }
+
+    start_risk = random.uniform(0, 3)
     
     slider_container = Div(
         Label('Risk'),
         Div(
-            Input(type='range', min=0, max=3, step=0.1, value=0, cls='slider'),
+            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider'),
             Div(
                 *[Div(
                     data_tick_value=i,
