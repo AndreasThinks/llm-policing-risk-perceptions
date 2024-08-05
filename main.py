@@ -3,6 +3,7 @@ from content import introductory_div, details_div, starting_computation_text
 import numpy as np
 import random
 import requests
+from query_llm import query_llm_with_user_scenario
 
 introductory_text = '''
 Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
@@ -175,7 +176,8 @@ def show_user_scenario(request):
                          'is_public': request.query_params.get('public', False),
                             'is_uk': request.query_params.get('uk', False),
                             'is_us': request.query_params.get('us', False),
-                            'is_elsewhere': request.query_params.get('elsewhere', False)}
+                            'is_elsewhere': request.query_params.get('elsewhere', False),
+                            'scenario_text': generated_scenario['scenario']}
     
     print('new_user_submission', new_user_submission)
     
@@ -204,7 +206,7 @@ def show_user_scenario(request):
     slider_container = Div(
         Label('Risk'),
         Div(
-            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider'),
+            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider', name='risk_slider_score'),
             Div(
                 *[Div(
                     data_tick_value=i,
@@ -216,16 +218,17 @@ def show_user_scenario(request):
             cls='slider-container'
         )
     )
-    submission_button = Button('Submit', id='submit_buttom' ,hx_post='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML')
-    return Div(scenario_div, slider_container, submission_button)
+    submission_button = Button('Submit', id='submit_buttom', name='risk_form_name_button')
+    return Form(scenario_div, slider_container, submission_button, id='risk_form', name='risk_form_name', hx_post='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML',)
 
 
 @app.post("/submit_user_answers")
-def submit_user_answers():
+async def submit_user_answers(risk_slider_score, request):
     # write SQLITe query to get 2 random models
     query = "SELECT * FROM llms ORDER BY RANDOM() LIMIT 2"
     random_llm_models = db.q(query)
     print(random_llm_models)
+    print(risk_slider_score)
     model_1 = random_llm_models[0]
     model_2 = random_llm_models[1]    
     starting_computation_text = f"Selecting models..."
@@ -234,6 +237,11 @@ def submit_user_answers():
     second_model_text = P(f"{model_2['model']}", cls='second_model_text')
     model_comparison_div = Div(first_model_text, second_model_text, cls='model_comparison_div')
     generating_answers = P('Generating answers...', cls='generating_answers')
+    form_data =  await request.form()
+    risk_score = form_data.get('risk_slider_score')
+    db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
+    query_llm_with_user_scenario(request.session['user_id'], model_1['model'])
+    query_llm_with_user_scenario(request.session['user_id'], model_2['model'])
     return Div(first_line, model_comparison_div, generating_answers, cls='computing_answers_div')
 
 @app.post("/generate_ai_answers")

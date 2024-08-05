@@ -11,8 +11,8 @@ if scenarios not in db.t:
     scenarios.create(id=int, title=str, full_text=str, risk_description=str, pk='id')
     ages.create(id=int, age=int, pk='id')
     ethnicities.create(id=int, ethnicity=str, pk='id')
-    human_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=float, is_police_officer=bool, is_police_family=bool, is_public=bool, is_uk=bool, is_us=bool, is_elsewhere=bool, pk='id')
-    ai_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=int, linked_human_submission=int,pk='id')
+    human_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=float, is_police_officer=bool, is_police_family=bool, is_public=bool, is_uk=bool, is_us=bool, is_elsewhere=bool, scenario_text=str, pk='id')
+    ai_submissions.create(id=int, risk_score=int, linked_human_submission=int,pk='id')
     llms.create(id=int, model=str, pk='id')
 
 # Although you can just use dicts, it can be helpful to have types for your DB objects.
@@ -31,8 +31,18 @@ expected_female_risk_profile = ("""Elisabeth is a {ethnicity} female, of around 
 
 scenarios_list = [crime_male_risk_profile, crime_female_risk_profile, out_of_character_male_risk_profile, out_of_character_female_risk_profile, expected_male_risk_profile, expected_female_risk_profile]
 
-llm_models = ['gpt-4o-mini','claude-2', "groq/llama-3.1-8b-instant","groq/llama-3.1-405b-reasoning","groq/mixtral-8x7b-32768","groq/gemma-7b-it"]
+llm_models = ['gpt-4o-mini','claude-2', "groq/llama-3.1-8b-instant","groq/llama-3.1-70b-versatile","groq/mixtral-8x7b-32768","groq/gemma-7b-it"]
 
+'''
+# SQL query to take the first row of the db
+query = "SELECT * FROM scenarios LIMIT 1"
+
+first_row = db.query(query)
+print(first_row)
+
+
+# If the db is empty, add the data
+if not first_row:'''
 # add all the ages to the database
 for age in age_list:
     ages.insert(age=age)
