@@ -1,7 +1,8 @@
 from models import db
 import json
+import litellm
 from litellm import completion
-
+litellm.set_verbose=True
 
 copbot_chat_content = '''
 You are CopBot, an assistant designed to help police officers risk assess missing persons.
