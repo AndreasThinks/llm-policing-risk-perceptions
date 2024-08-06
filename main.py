@@ -3,7 +3,9 @@ from content import introductory_div, details_div, starting_computation_text
 import numpy as np
 import random
 import requests
-from query_llm import query_llm_with_user_scenario
+from query_llm import query_llm_with_user_scenario, generate_llm_scenario_prediction
+from plots import generate_prediction_plot
+from starlette.background import BackgroundTask, BackgroundTasks
 
 introductory_text = '''
 Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
@@ -206,7 +208,7 @@ def show_user_scenario(request):
     slider_container = Div(
         Label('Risk'),
         Div(
-            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider', name='risk_slider_score'),
+            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider', name='risk_slider_score',id='risk_slider_score'),
             Div(
                 *[Div(
                     data_tick_value=i,
@@ -216,40 +218,42 @@ def show_user_scenario(request):
                 cls='ticks'
             ),
             cls='slider-container'
-        )
-    )
-    submission_button = Button('Submit', id='submit_buttom', name='risk_form_name_button')
-    return Form(scenario_div, slider_container, submission_button, id='risk_form', name='risk_form_name', hx_post='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML',)
+        ),id='inner_form')
+    submission_button = Button('Submit', id='submit_buttom', name='risk_form_name_button',)
+
+    form_div = Div(scenario_div, Form(slider_container, submission_button, id='risk_form', name='risk_form_name', hx_get='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML'))
+    return form_div
+
+    #return Form(scenario_div, slider_container, submission_button, id='risk_form', name='risk_form_name', hx_post='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML',)
 
 
-@app.post("/submit_user_answers")
-async def submit_user_answers(risk_slider_score, request):
-    # write SQLITe query to get 2 random models
-    query = "SELECT * FROM llms ORDER BY RANDOM() LIMIT 2"
-    random_llm_models = db.q(query)
-    print(random_llm_models)
-    print(risk_slider_score)
-    model_1 = random_llm_models[0]
-    model_2 = random_llm_models[1]    
-    starting_computation_text = f"Selecting models..."
-    first_line = P(starting_computation_text)
-    first_model_text = P(f"{model_1['model']}", cls='first_model_text')
-    second_model_text = P(f"{model_2['model']}", cls='second_model_text')
-    model_comparison_div = Div(first_model_text, second_model_text, cls='model_comparison_div')
+@app.get("/submit_user_answers")
+def submit_user_answers(request):
     generating_answers = P('Generating answers...', cls='generating_answers')
-    form_data =  await request.form()
-    risk_score = form_data.get('risk_slider_score')
+    number_of_responses = 5
+    risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
-    query_llm_with_user_scenario(request.session['user_id'], model_1['model'])
-    query_llm_with_user_scenario(request.session['user_id'], model_2['model'])
-    return Div(first_line, model_comparison_div, generating_answers, cls='computing_answers_div')
+    generate_llm_scenario_prediction(request.session['user_id'], number_of_responses)
+    answers_div= Div(generating_answers,Progress(value=0, max=10, cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+                     hx_get='/generate_user_plot', hx_trigger="every 600ms", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
+    return answers_div
 
-@app.post("/generate_ai_answers")
-def generate_ai_answers():
-    # add user to db
-    
-    generated_scenario = generate_random_scenario()
-    return generated_scenario
+
+@app.get("/generate_user_plot")
+def generate_user_plot(request):
+    print('refershing progress')
+    total_responses_to_gen = 10
+    user_id = request.session['user_id']
+    sql_query = "SELECT * FROM ai_submissions WHERE linked_human_submission = "+ str(user_id)
+    completed_ai_submissions = db.q(sql_query)
+    if len(completed_ai_submissions) < total_responses_to_gen:
+            progress_bar = Progress(value=len(completed_ai_submissions), max=10, cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+                     hx_get='/generate_user_plot', hx_trigger="every 600ms", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
+            return progress_bar
+    else:
+        plot_html = generate_prediction_plot(user_id)
+        return plot_html
+
 
 @app.post("/show_user_scenario")
 def show_user_scenario():

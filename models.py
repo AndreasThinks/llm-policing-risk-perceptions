@@ -12,7 +12,7 @@ if scenarios not in db.t:
     ages.create(id=int, age=int, pk='id')
     ethnicities.create(id=int, ethnicity=str, pk='id')
     human_submissions.create(id=int, scenario_id=int, age=str, ethnicity=str, risk_score=float, is_police_officer=bool, is_police_family=bool, is_public=bool, is_uk=bool, is_us=bool, is_elsewhere=bool, scenario_text=str, pk='id')
-    ai_submissions.create(id=int, risk_score=int, linked_human_submission=int,pk='id')
+    ai_submissions.create(id=int, risk_score=int, linked_human_submission=int,model_number=int, pk='id')
     llms.create(id=int, model=str, pk='id')
 
 # Although you can just use dicts, it can be helpful to have types for your DB objects.
@@ -44,11 +44,15 @@ print(first_row)
 # If the db is empty, add the data
 if not first_row:'''
 # add all the ages to the database
-for age in age_list:
-    ages.insert(age=age)
-for ethnicity in ethnicity_list:
-    ethnicities.insert(ethnicity=ethnicity)
-for scenario in scenarios_list:
-    scenarios.insert(title=scenario[1], full_text=scenario[0], risk_description=scenario[1])
-for llm in llm_models:
-    llms.insert(model=llm)
+print(scenarios.count)
+print(scenarios())
+
+if scenarios.count == 0:
+    for age in age_list:
+        ages.insert(age=age)
+    for ethnicity in ethnicity_list:
+        ethnicities.insert(ethnicity=ethnicity)
+    for scenario in scenarios_list:
+        scenarios.insert(title=scenario[1], full_text=scenario[0], risk_description=scenario[1])
+    for llm in llm_models:
+        llms.insert(model=llm)
