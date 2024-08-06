@@ -10,7 +10,7 @@ import plotly
 
 def user_prediction_plot(user_prediction):
     """
-    Generate a plot showing the user's prediction on a scale of 0 to 4.
+    Generate a plot showing the user's prediction on a scale of 0 to 3.
     """
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -22,8 +22,8 @@ def user_prediction_plot(user_prediction):
     ))
     fig.update_layout(
         title='User Risk Perception',
-        xaxis=dict(title='Risk Level', range=[0, 4]),
-        yaxis=dict(showticklabels=False, showgrid=False),
+        xaxis=dict(title='Risk Level', range=[0, 3]),
+        yaxis=dict(showticklabels=False, showgrid=False, range=[0, 1]),
         height=300
     )
     return fig
