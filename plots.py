@@ -1,97 +1,130 @@
 from models import db
-
 from fasthtml import *
-
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import plotly
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+from scipy import stats
 
+from fasthtml.common import NotStr
 
-def user_prediction_plot(user_prediction):
-    """
-    Generate a plot showing the user's prediction on a scale of 0 to 3.
-    """
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=[user_prediction],
-        y=[0],
-        mode='markers',
-        marker=dict(size=15, color='red'),
-        name='User Prediction'
-    ))
-    fig.update_layout(
-        title='User Risk Perception',
-        xaxis=dict(title='Risk Level', range=[0, 3]),
-        yaxis=dict(showticklabels=False, showgrid=False, range=[0, 1]),
-        height=300
+def generate_user_prediction_plot(user_id):
+    connection = db.conn
+    query_with_llm_join = "SELECT risk_score, linked_human_submission, linked_model_id, model_number, llms.model FROM ai_submissions JOIN llms ON ai_submissions.linked_model_id=llms.id WHERE linked_human_submission=" + str(user_id)
+    ai_submission_df = pd.read_sql(query_with_llm_join, connection)
+    user_risk_score = db.t.human_submissions("id=" + str(user_id))[0].risk_score
+    user_df = pd.DataFrame([[user_risk_score,'You']], columns=["risk_score",'model'])
+    df = pd.concat([ai_submission_df, user_df])
+
+    def create_distribution_line(data, color):
+        try:
+            kde = stats.gaussian_kde(data)
+            x_range = np.linspace(0, 3, 300)  # Increased resolution for smoother line
+            y_kde = kde(x_range)
+            
+            # Calculate the histogram with bin width of 0.1
+            bin_edges = np.arange(0, 3.1, 0.1)  # 0 to 3 inclusive, with 0.1 width
+            hist, _ = np.histogram(data, bins=bin_edges, density=True)
+            
+            # Scale KDE to match the maximum height of the histogram
+            max_hist_height = np.max(hist)
+            y_kde_scaled = y_kde * (max_hist_height / np.max(y_kde))
+            
+            return go.Scatter(
+                x=x_range,
+                y=y_kde_scaled,
+                mode='lines',
+                line=dict(color=color, width=2)
+            )
+        except np.linalg.LinAlgError:
+            # Fallback to cumulative distribution function if KDE fails
+            sorted_data = np.sort(data)
+            cumulative = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
+            return go.Scatter(
+                x=sorted_data,
+                y=cumulative,
+                mode='lines',
+                line=dict(color=color, width=2)
+            )
+
+    # Assuming df is your DataFrame with 'risk_score' and 'model' columns
+    models = [model for model in df['model'].unique() if model != "You"]
+    colors = ['blue', 'red']
+
+    # Create figure
+    fig = make_subplots()
+
+    max_count = 0  # To keep track of the maximum count for scaling the "You" line
+
+    # Add traces for each model (excluding "You")
+    for i, model in enumerate(models):
+        model_data = df[df['model'] == model]['risk_score']
+        
+        # Add histogram with fixed bin width of 0.1
+        hist = go.Histogram(
+            x=model_data,
+            name=model,
+            opacity=0.6,
+            xbins=dict(start=0, end=3, size=0.1),
+            marker_color=colors[i]
+        )
+        fig.add_trace(hist)
+        
+        # Update max_count
+        max_count = max(max_count, max(hist.y) if hist.y else 0)
+        
+        # Add distribution line
+        distribution_line = create_distribution_line(model_data, colors[i])
+        distribution_line.name = f'{model} Distribution'
+        fig.add_trace(distribution_line)
+
+    # Add "You" as a vertical line spanning the entire height
+    you_data = df[df['model'] == "You"]['risk_score'].iloc[0]
+    fig.add_trace(
+        go.Scatter(
+            x=[you_data, you_data],
+            y=[0, max_count],  # This will be adjusted in update_yaxes
+            mode='lines',
+            name="You",
+            line=dict(color='lime', width=2, dash='dash'),
+            hoverinfo='x'
+        )
     )
-    return fig
 
-def model1_histogram(predictions):
-    """
-    Generate a histogram of Model 1 predictions with buckets of 0.5.
-    """
-    fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=predictions,
-        xbins=dict(start=0, end=4, size=0.5),
-        marker_color='blue',
-        opacity=0.7,
-        name='Model 1 Predictions'
-    ))
+    # Update layout
     fig.update_layout(
-        title='Model 1 Risk Predictions',
-        xaxis=dict(title='Risk Level', range=[0, 4]),
-        yaxis=dict(title='Frequency'),
-        height=300
+        xaxis_title='Risk Score',
+        yaxis_title='Count',
+        barmode='overlay',
+        bargap=0.1,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
     )
-    return fig
 
-def model2_distribution(predictions):
-    """
-    Generate a distribution plot of Model 2 predictions.
-    """
-    fig = go.Figure()
-    fig.add_trace(go.Violin(
-        y=predictions,
-        box_visible=True,
-        line_color='green',
-        opacity=0.7,
-        name='Model 2 Predictions'
-    ))
-    fig.update_layout(
-        title='Model 2 Risk Predictions Distribution',
-        yaxis=dict(title='Risk Level', range=[0, 4]),
-        height=300
-    )
-    return fig
+    # Set x-axis range and tick marks
+    fig.update_xaxes(range=[0, 3], dtick=0.5)
 
-def create_combined_plot(user_prediction, model1_predictions, model2_predictions):
-    """
-    Combine all three plots into a single figure with subplots.
-    """
-    fig = make_subplots(rows=3, cols=1, vertical_spacing=0.1)
+    # Ensure y-axis starts at 0 and extends slightly above the maximum count
+    fig.update_yaxes(range=[0, max_count * 1.1], zeroline=True, zerolinewidth=2, zerolinecolor='lightgray')
 
-    user_fig = user_prediction_plot(user_prediction)
-    model1_fig = model1_histogram(model1_predictions)
-    model2_fig = model2_distribution(model2_predictions)
+    plot_html = plotly.io.to_html(fig, full_html=False)
+    first_model = models[0]
+    second_model = models[1]
 
-    for trace in user_fig.data:
-        fig.add_trace(trace, row=1, col=1)
-    for trace in model1_fig.data:
-        fig.add_trace(trace, row=2, col=1)
-    for trace in model2_fig.data:
-        fig.add_trace(trace, row=3, col=1)
-
-    fig.update_layout(height=900, title_text="Risk Perception Comparison")
-    return fig
-
-def generate_prediction_plot(user_id):
-    user_prediction = db.t.human_submissions.get(user_id).risk_score
-
-    model1_preds = [sub.risk_score for sub in db.t.ai_submissions("linked_human_submission=" + str(user_id) + " AND model_number=0")]
-    model2_preds = [sub.risk_score for sub in db.t.ai_submissions("linked_human_submission=" + str(user_id) + " AND model_number=1")]
-    combined_fig = create_combined_plot(user_prediction, model1_preds, model2_preds)
-    plot_html = plotly.io.to_html(combined_fig, full_html=False)
-    return plot_html
+    first_line = Div('Thank you for taking part!  Here is how your risk assessment compares to the AI models:', cls='marked')
+    second_line = Div(f'You: {user_risk_score}', cls='marked')
+    third_line = Div(f'{first_model}: {ai_submission_df[ai_submission_df["model"] == first_model]["risk_score"].mean():.2f}', cls='marked')
+    fourth_line = Div(f'{second_model}: {ai_submission_df[ai_submission_df["model"] == second_model]["risk_score"].mean():.2f}', cls='marked')
+    finish = Div("Try again to see how you compare to other models!")
+    return Container(first_line, second_line, third_line, fourth_line, NotStr(plot_html),finish)

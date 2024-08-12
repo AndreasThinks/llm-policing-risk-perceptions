@@ -1,8 +1,11 @@
 from fasthtml.common import *
 
-opening_para = ''' Welcome to Copbot Live. This service is designed to help us understand how AI models differ to humans in their perceptions of policing and public safety risks, by examining the risk assessment of missing people.
+opening_para = ''' Welcome to Copbot Live! This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk.
 
-Once you're ready, hit start to read about how missing people are assessed and to begin the comparison.'''
+If you're happy to take part, the paragraph below will give you a quick explainer of how policing in the UK assesses the risk around missing people - you can read more at the [College of Policing website](https://www.college.police.uk/app/major-investigation-and-public-protection/missing-persons).
+
+Once you're done, please fill in a few details about yourself, and we'll get started! You'll be presented with a scenario, and asked to provide a risk assessment. Then, we'll show you how you compare, both to other humans, and to AI models.
+'''
 
 
 introductory_text = '''
@@ -13,6 +16,8 @@ Using the information provide on a missing person, you will decide on the approp
 - High risk (when the risk of serious harm to the subject or the public is assessed as very likely.)
 
 This would normally help inform the level of resourcing and urgency.
+
+Now, you're ready to get started! Read through the details below, and then fill in the form to get started.
 '''
 
 starting_computation_text ='''
@@ -21,6 +26,7 @@ Now we'll compare your answers to two separate AI models to see how they compare
 missing_explainer_div = Div(Div(introductory_text,cls='marked'), Img(src='static/missing_risks.png'), cls='introductory_text')
 
 introductory_div = Div(Div(opening_para,cls='marked'), missing_explainer_div, cls='introduction_block')
+
 
 police_nature_form = Fieldset(Legend('Which of the following best describes you?'),
                               Label(Input("I'm a police officer", type='checkbox', name='police_officer'), id="is_police_officer_checkbox"),

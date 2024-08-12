@@ -3,8 +3,8 @@ from content import introductory_div, details_div, starting_computation_text
 import numpy as np
 import random
 import requests
-from query_llm import query_llm_with_user_scenario, generate_llm_scenario_prediction
-from plots import generate_prediction_plot
+from query_llm import query_llm_with_user_scenario, generate_llm_scenario_prediction, batch_generate_scenario_predictions
+from plots import generate_user_prediction_plot
 from starlette.background import BackgroundTask, BackgroundTasks
 
 introductory_text = '''
@@ -29,9 +29,7 @@ css = Style('''
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
-    margin: 20px;
 }
-            
 .model_comparison_div {
     display: flex;
     flex-direction: row;
@@ -124,6 +122,14 @@ css = Style('''
             text-color: blue;
             font-size: 20px;
             }
+
+button {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    #risk_form {
+            margin-top: 20px;
+            }
 ''')
 
 
@@ -157,11 +163,12 @@ def generate_random_scenario():
         
 @app.get("/")
 def home():
-    return Page(Title('CopBot'),
+    return (Title('Copbot Live'),
+            Container(
                 introductory_div,
                 Form(
                 details_div,
-                Button('Start', id='start_button'), hx_get='/show_user_scenario', hx_target='#start_button', hx_swap='outerHTML'))
+                Button('Start', id='start_button'), hx_get='/show_user_scenario', hx_target='#start_button', hx_swap='outerHTML'),id='main_body_container'))
 
 @app.get('/show_user_scenario')
 def show_user_scenario(request):
@@ -179,28 +186,38 @@ def show_user_scenario(request):
                             'is_uk': request.query_params.get('uk', False),
                             'is_us': request.query_params.get('us', False),
                             'is_elsewhere': request.query_params.get('elsewhere', False),
-                            'scenario_text': generated_scenario['scenario']}
-    
-    print('new_user_submission', new_user_submission)
-    
+                            'scenario_text': generated_scenario['scenario']}    
 
     
     new_user = db.t.human_submissions.insert(**new_user_submission)
-
-    print('new_user', new_user)
 
     new_user_submission['id'] = new_user.id
 
     # set the session user id
     request.session['user_id'] = new_user.id
 
-    scenario_div = Div(generated_scenario['scenario'], cls='scenario_div')
+    scenario_div = Strong(generated_scenario['scenario'], cls='scenario_div')
     
+    opening_line = Div("Here is your scenario:")
+
+    hidden_slider_div = Div(id='hidden_slider_div')
+
+    submission_div = Div(hidden_slider_div, Button('Next', id='risk_button', hx_get='/get_grading_form', hx_target='#submission_div', hx_swap='outerHTML'), id='submission_div')
+
+    closing_line = Div("When you're ready, press the button to submit your risk assessment.")
+
+    scenario_page = Container(opening_line, Hr(), scenario_div, Hr(),closing_line, submission_div)
+    
+    return scenario_page
+
+@app.get("/get_grading_form")
+def get_grading_form(request):
+
     risk_levels = {
-        0: "No Risk",
-        1: "Low Risk",
-        2: "Medium Risk",
-        3: "High Risk"
+    0: "No Risk",
+    1: "Low Risk",
+    2: "Medium Risk",
+    3: "High Risk"
     }
 
     start_risk = random.uniform(0, 3)
@@ -218,13 +235,11 @@ def show_user_scenario(request):
                 cls='ticks'
             ),
             cls='slider-container'
-        ),id='inner_form')
-    submission_button = Button('Submit', id='submit_buttom', name='risk_form_name_button',)
+        ),id='inner_form'),
+    submission_button = Button('Submit', id='submit_buttom', name='risk_form_name_button', cls='risk_submission_form')
 
-    form_div = Div(scenario_div, Form(slider_container, submission_button, id='risk_form', name='risk_form_name', hx_get='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML'))
+    form_div = Form(slider_container, submission_button, id='risk_form', name='risk_form_name', hx_get='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML')
     return form_div
-
-    #return Form(scenario_div, slider_container, submission_button, id='risk_form', name='risk_form_name', hx_post='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML',)
 
 
 @app.get("/submit_user_answers")
@@ -233,9 +248,9 @@ def submit_user_answers(request):
     number_of_responses = 5
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
-    generate_llm_scenario_prediction(request.session['user_id'], number_of_responses)
-    answers_div= Div(generating_answers,Progress(value=0, max=10, cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
-                     hx_get='/generate_user_plot', hx_trigger="every 600ms", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
+    batch_generate_scenario_predictions(request.session['user_id'], number_of_responses)
+    answers_div= Div(Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+                     hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
 
 
@@ -247,11 +262,11 @@ def generate_user_plot(request):
     sql_query = "SELECT * FROM ai_submissions WHERE linked_human_submission = "+ str(user_id)
     completed_ai_submissions = db.q(sql_query)
     if len(completed_ai_submissions) < total_responses_to_gen:
-            progress_bar = Progress(value=len(completed_ai_submissions), max=10, cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
-                     hx_get='/generate_user_plot', hx_trigger="every 600ms", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
+            progress_bar = Progress(cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+                     hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
             return progress_bar
     else:
-        plot_html = generate_prediction_plot(user_id)
+        plot_html = generate_user_prediction_plot(user_id)
         return plot_html
 
 
