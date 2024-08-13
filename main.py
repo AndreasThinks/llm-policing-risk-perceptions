@@ -1,3 +1,5 @@
+import os
+import logging
 from fasthtml.common import *
 from content import introductory_div, details_div, starting_computation_text
 import numpy as np
@@ -14,6 +16,13 @@ from slowapi.errors import RateLimitExceeded
 
 
 from fasthtml.authmw import user_pwd_auth
+
+# Set up logging
+log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+logger.info(f"Logging level set to {log_level}")
 
 introductory_text = '''
 Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
@@ -197,6 +206,7 @@ def get_results_dataframe():
     return pd.read_sql(sql_query, connection)
 
 def generate_random_scenario():
+    logger.debug("Generating random scenario")
     random_scenario = db.t.scenarios(order_by='RANDOM()')[0]
     random_age = db.t.ages(order_by='RANDOM()')[0]
     random_ethnicity = db.t.ethnicities(order_by='RANDOM()')[0]
@@ -208,6 +218,7 @@ def generate_random_scenario():
         ethnicity=random_ethnicity.ethnicity,
         time = random_time.time_str,
         sex=random_sex.sex)
+    logger.info(f"Generated scenario with ID: {random_scenario.id}")
     return {'scenario': completed_scenario,
             'scenario_id': random_scenario.id,
             'age_id': random_age.id,
@@ -217,6 +228,7 @@ def generate_random_scenario():
         
 @app.get("/")
 def home():
+    logger.info("Home page accessed")
     return (Title('Copbot Live'),
             Container(
                 introductory_div,
@@ -226,10 +238,10 @@ def home():
 
 @app.get('/show_user_scenario')
 def show_user_scenario(request):
+    logger.info("Showing user scenario")
     # add user to the db
 
     generated_scenario = generate_random_scenario()
-
 
     new_user_submission={'scenario_id': generated_scenario['scenario_id'],
                          'age': generated_scenario['age_id'],
@@ -249,6 +261,7 @@ def show_user_scenario(request):
 
     # set the session user id
     request.session['user_id'] = new_user.id
+    logger.debug(f"New user created with ID: {new_user.id}")
 
     scenario_div = Strong(generated_scenario['scenario'], cls='scenario_div')
     
@@ -298,9 +311,11 @@ def get_grading_form(request):
 @limiter.limit("3/minute")
 @app.get("/submit_user_answers")
 def submit_user_answers(request):
+    logger.info("User submitting answers")
     generating_answers = P('Generating answers...', cls='generating_answers')
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
+    logger.debug(f"User {request.session['user_id']} submitted risk score: {risk_score}")
     batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_GENERATED_PER_MODEL)
     answers_div= Div(Hr(),P('Generating your answers'), Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
@@ -311,10 +326,12 @@ import time
 
 @app.get("/generate_user_plot")
 def generate_user_plot(request):
+    logger.info("Generating user plot")
     user_id = request.session['user_id']
     sql_query = "SELECT * FROM ai_submissions WHERE linked_human_submission = "+ str(user_id)
     completed_ai_submissions = db.q(sql_query)
     if len(completed_ai_submissions) < (NUMBER_OF_MODELS_TO_COMPARE * NUMBER_OF_RESPONSES_GENERATED_PER_MODEL):
+            logger.debug(f"Not all AI submissions completed. Current count: {len(completed_ai_submissions)}")
             progress_bar = Progress(cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
             return progress_bar
@@ -324,11 +341,18 @@ def generate_user_plot(request):
         
         # If the function doesn't return within 15 seconds, try again
         while plot_html is None and time.time() - start_time < 15:
+            logger.warning(f"Plot generation timeout for user {user_id}. Retrying...")
             time.sleep(1)  # Wait for 1 second before checking again
         
         if plot_html is None:
             # If still no result after 15 seconds, try one more time
+            logger.error(f"Plot generation failed for user {user_id}. Making final attempt.")
             plot_html = generate_user_prediction_plot(user_id)
+        
+        if plot_html is not None:
+            logger.info(f"Successfully generated plot for user {user_id}")
+        else:
+            logger.error(f"Failed to generate plot for user {user_id}")
         
         return plot_html if plot_html is not None else "Error: Unable to generate plot"
 
