@@ -2,11 +2,15 @@ from fasthtml.common import *
 from content import introductory_div, details_div, starting_computation_text
 import numpy as np
 import random
+from starlette.responses import StreamingResponse
 import requests
-from query_llm import query_llm_with_user_scenario, generate_llm_scenario_prediction, batch_generate_scenario_predictions
+from query_llm import batch_generate_scenario_predictions
 from plots import generate_user_prediction_plot
-from starlette.background import BackgroundTask, BackgroundTasks
 import pandas as pd
+from functools import wraps
+
+
+from fasthtml.authmw import user_pwd_auth
 
 introductory_text = '''
 Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
@@ -22,6 +26,14 @@ chart_css = Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/chart.css/
 
 chart_css = Style('''<link rel="stylesheet" href="path/to/your/charts.min.css">''')
 # lets make sure there is a bit of whiet space around our details div
+
+def require_admin(func):
+    @wraps(func)
+    async def wrapper(request: Request, *args, **kwargs):
+        if not request.scope.get("auth"):
+            raise HTTPException(status_code=401, detail="Authentication required")
+        return await func(request, *args, **kwargs)
+    return wrapper
 
 
 css = Style('''
@@ -136,9 +148,26 @@ button {
 
 from models import db, initialize_tables
 
+admin_password = os.environ.get("ADMIN_PASSWORD")
+
+# If admin_password is not set, you might want to raise an error or set a default
+if not admin_password:
+    raise ValueError("ADMIN_PASSWORD environment variable is not set")
+
+def auth_function(username, password):
+    # We don't care about the username, only the password
+    return password == admin_password
+
+admin_routes = ["/admin/extract_results", "/admin/clear_results"]
+
+auth = user_pwd_auth(
+    lookup=auth_function,
+    skip=[r'^(?!/admin/).*$']
+)
+
 NUMBER_OF_RESPONSES_PER_USER = 30
 
-app,rt = fast_app(hdrs=(picolink, css, chart_css, MarkdownJS()))
+app,rt = fast_app(hdrs=(picolink, css, chart_css, MarkdownJS()), middleware=[auth])
 
 def get_risk_interpretation(score):
     print(score)
@@ -150,6 +179,16 @@ def get_risk_interpretation(score):
         return "Medium risk"
     else:
         return "High risk"
+    
+def get_results_dataframe():
+    sql_query = """
+    SELECT human_submissions.id, scenario_id, age, ethnicity, human_submissions.risk_score, is_police_officer, is_police_family, is_public, is_uk, is_us, is_elsewhere, scenario_text, ai_submissions.risk_score as ai_risk_score, ai_submissions.linked_model_id
+    FROM human_submissions
+    LEFT JOIN ai_submissions ON human_submissions.id = ai_submissions.linked_human_submission
+    WHERE human_submissions.risk_score IS NOT NULL
+    """
+    connection = db.conn
+    return pd.read_sql(sql_query, connection)
 
 def generate_random_scenario():
     random_scenario = db.t.scenarios(order_by='RANDOM()')[0]
@@ -277,18 +316,52 @@ def show_user_scenario():
     return Div(generated_scenario['scenario'], cls='scenario_div')
 
 
-@app.get("admin/extract_results")
-def extract_results():
-    sql_query = """
-    SELECT human_submissions.id, scenario_id, age, ethnicity, human_submissions.risk_score, is_police_officer, is_police_family, is_public, is_uk, is_us, is_elsewhere, scenario_text, ai_submissions.risk_score as ai_risk_score, ai_submissions.linked_model_id
-    FROM human_submissions
-    LEFT JOIN ai_submissions ON human_submissions.id = ai_submissions.linked_human_submission
-    WHERE human_submissions.risk_score IS NOT NULL
-    """
-    connection = db.conn
-    results_df = pd.read_sql(sql_query, connection)
-    results_df.to_parquet('static/results.parquet')
-    return FileResponse('static/results.parquet')
+@app.get("/admin/extract_results_parquet")
+async def extract_results_parquet(request):
+    results_df = get_results_dataframe()
+    
+    # Create a BytesIO object to store the Parquet data
+    parquet_buffer = io.BytesIO()
+    
+    # Write the DataFrame to the BytesIO object in Parquet format
+    results_df.to_parquet(parquet_buffer)
+    
+    # Seek to the beginning of the BytesIO object
+    parquet_buffer.seek(0)
+    
+    # Create a StreamingResponse
+    return StreamingResponse(
+        iter([parquet_buffer.getvalue()]),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": "attachment; filename=results.parquet"
+        })
+    
+
+@app.get("/admin/extract_results_csv")
+async def extract_results_csv(request):
+    results_df = get_results_dataframe()
+    
+    # Create a StringIO object to store the CSV data
+    csv_buffer = io.StringIO()
+    
+    # Write the DataFrame to the StringIO object in CSV format
+    results_df.to_csv(csv_buffer, index=False)
+    
+    # Seek to the beginning of the StringIO object
+    csv_buffer.seek(0)
+    
+    # Create a StreamingResponse
+    return StreamingResponse(
+        iter([csv_buffer.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=results.csv"
+        }
+    )
+
+
+
 
 @app.get("/admin/clear_results")
 def clear_results():
