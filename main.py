@@ -134,7 +134,7 @@ button {
 ''')
 
 
-from models import db
+from models import db, initialize_tables
 
 NUMBER_OF_RESPONSES_PER_USER = 30
 
@@ -292,7 +292,13 @@ def extract_results():
 
 @app.get("/admin/clear_results")
 def clear_results():
-    # TODO implement this
-    pass
+    # Clear all tables
+    for table in [db.t.scenarios, db.t.human_submissions, db.t.ai_submissions, db.t.ages, db.t.ethnicities, db.t.llms]:
+        table.delete()
+    
+    # Re-initialize tables
+    initialize_tables()
+    
+    return "All results cleared and tables re-initialized."
 
 serve()

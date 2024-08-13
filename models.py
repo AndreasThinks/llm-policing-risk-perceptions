@@ -47,12 +47,16 @@ if not first_row:'''
 print(scenarios.count)
 print(scenarios())
 
-if scenarios.count == 0:
-    for age in age_list:
-        ages.insert(age=age)
-    for ethnicity in ethnicity_list:
-        ethnicities.insert(ethnicity=ethnicity)
-    for scenario in scenarios_list:
-        scenarios.insert(title=scenario[1], full_text=scenario[0], risk_description=scenario[1])
-    for llm in llm_models:
-        llms.insert(model=llm)
+def initialize_tables():
+    if scenarios.count == 0:
+        for age in age_list:
+            ages.insert(age=age)
+        for ethnicity in ethnicity_list:
+            ethnicities.insert(ethnicity=ethnicity)
+        for scenario in scenarios_list:
+            scenarios.insert(title=scenario[1], full_text=scenario[0], risk_description=scenario[1])
+        for llm in llm_models:
+            llms.insert(model=llm)
+
+# Call the function to initialize tables if they're empty
+initialize_tables()
