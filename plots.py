@@ -69,7 +69,7 @@ def generate_user_prediction_plot(user_id):
             x=model_data,
             name=model,
             opacity=0.6,
-            xbins=dict(start=0, end=3, size=0.1),
+            xbins=dict(start=0, end=3.2, size=0.1),
             marker_color=colors[i]
         )
         fig.add_trace(hist)
@@ -122,7 +122,7 @@ def generate_user_prediction_plot(user_id):
     )
 
     # Set x-axis range and tick marks
-    fig.update_xaxes(range=[0, 3], dtick=0.5)
+    fig.update_xaxes(range=[0, 3.2], dtick=0.5)
 
     # Ensure y-axis starts at 0 and extends slightly above the maximum count
     fig.update_yaxes(range=[0, max_count * 1.1], zeroline=True, zerolinewidth=2, zerolinecolor='lightgray', rangemode='nonnegative')

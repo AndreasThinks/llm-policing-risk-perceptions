@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-
+from analysis import generate_analysis_table
 
 from fasthtml.authmw import user_pwd_auth
 
@@ -246,6 +246,8 @@ def show_user_scenario(request):
     new_user_submission={'scenario_id': generated_scenario['scenario_id'],
                          'age': generated_scenario['age_id'],
                          'ethnicity': generated_scenario['ethnicity_id'],
+                         'sex': generated_scenario['sex_id'],
+                            'time': generated_scenario['time_id'],
                          'is_police_officer': request.query_params.get('police_officer', False),
                          'is_police_family': request.query_params.get('police_family', False),
                          'is_public': request.query_params.get('public', False),
@@ -312,7 +314,6 @@ def get_grading_form(request):
 @app.get("/submit_user_answers")
 def submit_user_answers(request):
     logger.info("User submitting answers")
-    generating_answers = P('Generating answers...', cls='generating_answers')
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
     logger.debug(f"User {request.session['user_id']} submitted risk score: {risk_score}")
@@ -420,5 +421,11 @@ def clear_results():
     initialize_tables()
     
     return "All results cleared and tables re-initialized."
+
+@app.get("/admin/analyse_results")
+def display_results():
+    results = generate_analysis_table()
+    return results.as_html()
+
 
 serve()

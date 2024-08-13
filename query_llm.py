@@ -66,6 +66,8 @@ def add_llm_response_to_db(scenario_dict, llm_responses, user_id):
     scenario_id = scenario_dict['scenario_id']
     age_id = scenario_dict['age_id']
     ethnicity_id = scenario_dict['ethnicity_id']
+    sex_id = scenario_dict['sex_id']
+    time_id = scenario_dict['time_id']
 
 
     for response in llm_responses.choices:
@@ -78,6 +80,8 @@ def add_llm_response_to_db(scenario_dict, llm_responses, user_id):
                                    age=age_id,
                                    ethnicity=ethnicity_id,
                                    risk_score=risk_score,
+                                   sex=sex_id,
+                                      time=time_id,
                                    linked_human_submission=user_id)
 
 
