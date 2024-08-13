@@ -7,3 +7,5 @@ jupyter
 pandas
 scipy
 pyarrow
+slowapi
+statsmodels

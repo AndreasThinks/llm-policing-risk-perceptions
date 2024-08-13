@@ -1,27 +1,27 @@
 from fasthtml.common import *
 
-opening_para = ''' Welcome to Copbot Live! This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk. You can read more about CopBot [here](https://andreasthinks.me/posts/Copbot/explainer.html).
+opening_para = ''' Welcome to Copbot Online. This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk. You'll be presented with a theoretical scenario, and asked to conduct an assessment - once you have submitted your response, you will see how you compare to a range of AI models. You can read more about CopBot [here](https://andreasthinks.me/posts/Copbot/explainer.html). If you're happy to take part, read through the guidance below to get started.
 
-If you're happy to take part, the paragraph below will give you a quick explainer of how policing in the UK assesses the risk around missing people - you can read more at the [College of Policing website](https://www.college.police.uk/app/major-investigation-and-public-protection/missing-persons).
-
-Once you're done, please fill in a few details about yourself, and we'll get started! You'll be presented with a scenario, and asked to provide a risk assessment. Then, we'll show you how you compare, both to other humans, and to AI models.
+Missing people in England and Wales are assessed based on guidance from [the College of Policing](https://www.college.police.uk/app/major-investigation-and-public-protection/missing-persons), the professional body for policing. The guidance is designed to help police officers and staff assess the risk to a missing person, and to help them decide on the appropriate response. 
 '''
 
 
 introductory_text = '''
-Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
-- No apparent risk (when there is no apparent risk of harm to either the subject or the public.)
-- Low risk (when the risk of harm to the subject or the public is assessed as possible but minimal)
-- Medium risk (when the risk of harm to the subject or the public is assessed as likely but not serious.)
-- High risk (when the risk of serious harm to the subject or the public is assessed as very likely.)
+*The nature and extent of the police response to a missing person report will be based on an assessment of the information available, the reasons why the person may be missing, and the possibility of the person being at risk of harm. Assessment of the level of risk helps to define how enquiries should be conducted.*
 
-This would normally help inform the level of resourcing and urgency.
+You should conduct an initial assessment based only on the information you have available in the scenario.  
 
-Now, you're ready to get started! Read through the details below, and then fill in the form to get started.
+The College of Policing guidance defines four levels of risk, which sit on a continuum from no apparent risk to high risk:
+- Very low risk: There is a very low risk of harm to either the subject or the public.
+- Low risk: The risk of harm to the subject or the public is assessed as possible but minimal.
+- Medium risk: The risk of harm to the subject or the public is assessed as likely but not serious.
+- High risk: The risk of serious harm to the subject or the public is assessed as very likely.
+
+In a real policing scenario, this assessment would help inform the urgency and resourcing of the response: high risk cases will almost always requires the immediate deployment of police resources, while low risk cases may result in a more measured response, such as telephone inquiries.
+
+Once you're happy you've read through these principles, and you're ready to start, please complete the questions below, and press the button to started.
 '''
 
-starting_computation_text ='''
-Now we'll compare your answers to two separate AI models to see how they compare.'''
 
 missing_explainer_div = Div(Div(introductory_text,cls='marked'), Img(src='static/missing_risks.png'), cls='introductory_text')
 

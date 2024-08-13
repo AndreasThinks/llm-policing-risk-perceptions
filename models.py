@@ -26,9 +26,9 @@ age_list = [5,10,14,16,20,25,50,80]
 time_list = ['eight PM', 'ten PM', 'two AM', '6 AM']
 ethnicity_list = ['White', 'mixed race', 'Asian', 'Black']
 sex_list = ['male','female']
-crime_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who have gone missing from their home in London. They were last seen around midday. They are known to have been involved in crime, and their disappearance is not out of character.""",'involved_in_crime')
-out_of_character_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who have gone missing from their home in London. They were last seen around midday. They are being reported by family members, who are concerned as this has never happened before""",'out_of_character')
-expected_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who have gone missing from their home in London. They were last seen around midday. The informant is not worried, as he says this has happened before and they always come home safe.""",'regular_missing_person')
+crime_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who has gone missing from their home in London. They were last seen around midday. They are known to have been involved in crime, and their disappearance is not out of character.""",'involved_in_crime')
+out_of_character_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who has gone missing from their home in London. They were last seen around midday. They are being reported by family members, who are concerned as this has never happened before""",'out_of_character')
+expected_risk_profile = ("""It is {time}, and you are receiving a report of a missing person. They are a  {age} year old, {ethnicity} {sex}, who has gone missing from their home in London. They were last seen around midday. The informant is not worried, as he says this has happened before and they always come home safe.""",'regular_missing_person')
 
 
 scenarios_list = [crime_risk_profile, out_of_character_risk_profile, expected_risk_profile]

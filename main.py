@@ -1,7 +1,7 @@
 import os
 import logging
 from fasthtml.common import *
-from content import introductory_div, details_div, starting_computation_text
+from content import introductory_div, details_div
 import numpy as np
 import random
 from starlette.responses import StreamingResponse
@@ -14,6 +14,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from analysis import generate_analysis_table
+import time
 
 from fasthtml.authmw import user_pwd_auth
 
@@ -180,7 +181,7 @@ NUMBER_OF_RESPONSES_GENERATED_PER_MODEL = 20
 # add rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
-app,rt = fast_app(hdrs=(picolink, css, MarkdownJS()), middleware=[auth])
+app,rt = fast_app(hdrs=(picolink, css, MarkdownJS()), middleware=[auth], name='CopBot Live', htmlkw={'data-theme:':'light'})
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -322,8 +323,6 @@ def submit_user_answers(request):
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
 
-
-import time
 
 @app.get("/generate_user_plot")
 def generate_user_plot(request):
