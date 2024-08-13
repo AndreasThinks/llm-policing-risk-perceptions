@@ -84,13 +84,22 @@ def generate_user_prediction_plot(user_id):
 
     # Add "You" as a vertical line spanning the entire height
     you_data = df[df['model'] == "You"]['risk_score'].iloc[0]
+    fig.add_shape(
+        type="line",
+        x0=you_data,
+        y0=0,
+        x1=you_data,
+        y1=1,
+        yref="paper",
+        line=dict(color="lime", width=2, dash="dash"),
+    )
     fig.add_trace(
         go.Scatter(
-            x=[you_data, you_data],
-            y=[0, max_count],  # This will be adjusted in update_yaxes
-            mode='lines',
+            x=[you_data],
+            y=[0],
+            mode='markers',
             name="You",
-            line=dict(color='lime', width=2, dash='dash'),
+            marker=dict(color='lime', size=10, symbol='diamond'),
             hoverinfo='x'
         )
     )
