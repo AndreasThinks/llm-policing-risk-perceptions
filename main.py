@@ -8,6 +8,9 @@ from query_llm import batch_generate_scenario_predictions
 from plots import generate_user_prediction_plot
 import pandas as pd
 from functools import wraps
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 
 from fasthtml.authmw import user_pwd_auth
@@ -143,6 +146,10 @@ button {
     #risk_form {
             margin-top: 20px;
             }
+
+    container { 
+            margin-top: 20px;
+            }
 ''')
 
 
@@ -167,7 +174,13 @@ auth = user_pwd_auth(
 
 NUMBER_OF_RESPONSES_PER_USER = 30
 
+# add rate limiting
+limiter = Limiter(key_func=get_remote_address)
+
 app,rt = fast_app(hdrs=(picolink, css, chart_css, MarkdownJS()), middleware=[auth])
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def get_risk_interpretation(score):
     print(score)
@@ -283,14 +296,14 @@ def get_grading_form(request):
     form_div = Form(slider_container, submission_button, id='risk_form', name='risk_form_name', hx_get='/submit_user_answers', hx_target='#submit_buttom', hx_swap='outerHTML')
     return form_div
 
-
+@limiter.limit("3/minute")
 @app.get("/submit_user_answers")
 def submit_user_answers(request):
     generating_answers = P('Generating answers...', cls='generating_answers')
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
     batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_PER_USER)
-    answers_div= Div(Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+    answers_div= Div(Hr(),P('Generating your answers'), Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
 
