@@ -6,6 +6,7 @@ import requests
 from query_llm import query_llm_with_user_scenario, generate_llm_scenario_prediction, batch_generate_scenario_predictions
 from plots import generate_user_prediction_plot
 from starlette.background import BackgroundTask, BackgroundTasks
+import pandas as pd
 
 introductory_text = '''
 Using the information provide on a missing person, you will decide on the appropriate risk grading for the person, from either
@@ -275,5 +276,23 @@ def show_user_scenario():
     generated_scenario = generate_random_scenario()
     return Div(generated_scenario['scenario'], cls='scenario_div')
 
+
+@app.get("admin/extract_results")
+def extract_results():
+    sql_query = """
+    SELECT human_submissions.id, scenario_id, age, ethnicity, human_submissions.risk_score, is_police_officer, is_police_family, is_public, is_uk, is_us, is_elsewhere, scenario_text, ai_submissions.risk_score as ai_risk_score, ai_submissions.linked_model_id
+    FROM human_submissions
+    LEFT JOIN ai_submissions ON human_submissions.id = ai_submissions.linked_human_submission
+    WHERE human_submissions.risk_score IS NOT NULL
+    """
+    connection = db.conn
+    results_df = pd.read_sql(sql_query, connection)
+    results_df.to_parquet('static/results.parquet')
+    return FileResponse('static/results.parquet')
+
+@app.get("/admin/clear_results")
+def clear_results():
+    # TODO implement this
+    pass
 
 serve()
