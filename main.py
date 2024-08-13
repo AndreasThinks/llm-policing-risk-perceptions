@@ -308,6 +308,8 @@ def submit_user_answers(request):
     return answers_div
 
 
+import time
+
 @app.get("/generate_user_plot")
 def generate_user_plot(request):
     user_id = request.session['user_id']
@@ -319,8 +321,18 @@ def generate_user_plot(request):
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
             return progress_bar
     else:
+        start_time = time.time()
         plot_html = generate_user_prediction_plot(user_id)
-        return plot_html
+        
+        # If the function doesn't return within 15 seconds, try again
+        while plot_html is None and time.time() - start_time < 15:
+            time.sleep(1)  # Wait for 1 second before checking again
+        
+        if plot_html is None:
+            # If still no result after 15 seconds, try one more time
+            plot_html = generate_user_prediction_plot(user_id)
+        
+        return plot_html if plot_html is not None else "Error: Unable to generate plot"
 
 
 @app.post("/show_user_scenario")
