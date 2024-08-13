@@ -135,6 +135,8 @@ button {
 
 from models import db
 
+NUMBER_OF_RESPONSES_PER_USER = 30
+
 app,rt = fast_app(hdrs=(picolink, css, chart_css, MarkdownJS()))
 
 def get_risk_interpretation(score):
@@ -245,10 +247,9 @@ def get_grading_form(request):
 @app.get("/submit_user_answers")
 def submit_user_answers(request):
     generating_answers = P('Generating answers...', cls='generating_answers')
-    number_of_responses = 5
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
-    batch_generate_scenario_predictions(request.session['user_id'], number_of_responses)
+    batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_PER_USER)
     answers_div= Div(Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
@@ -256,12 +257,11 @@ def submit_user_answers(request):
 
 @app.get("/generate_user_plot")
 def generate_user_plot(request):
-    print('refershing progress')
-    total_responses_to_gen = 10
     user_id = request.session['user_id']
     sql_query = "SELECT * FROM ai_submissions WHERE linked_human_submission = "+ str(user_id)
     completed_ai_submissions = db.q(sql_query)
-    if len(completed_ai_submissions) < total_responses_to_gen:
+    print('Number of completed submissions:', len(completed_ai_submissions))
+    if len(completed_ai_submissions) < NUMBER_OF_RESPONSES_PER_USER:
             progress_bar = Progress(cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
             return progress_bar
