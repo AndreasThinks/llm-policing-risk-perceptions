@@ -23,13 +23,6 @@ Using the information provide on a missing person, you will decide on the approp
 - High risk (when the risk of serious harm to the subject or the public is assessed as very likely.)
 '''
 
-chart_css = Link(rel="stylesheet", href="/charts.min.css", type="text/css")
-chart_css = Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/chart.css/dist/chart.min.css")
-
-
-chart_css = Style('''<link rel="stylesheet" href="path/to/your/charts.min.css">''')
-# lets make sure there is a bit of whiet space around our details div
-
 def require_admin(func):
     @wraps(func)
     async def wrapper(request: Request, *args, **kwargs):
@@ -172,18 +165,18 @@ auth = user_pwd_auth(
     skip=[r'^(?!/admin/).*$']
 )
 
-NUMBER_OF_RESPONSES_PER_USER = 30
+NUMBER_OF_MODELS_TO_COMPARE = 2
+NUMBER_OF_RESPONSES_GENERATED_PER_MODEL = 20
 
 # add rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
-app,rt = fast_app(hdrs=(picolink, css, chart_css, MarkdownJS()), middleware=[auth])
+app,rt = fast_app(hdrs=(picolink, css, MarkdownJS()), middleware=[auth])
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def get_risk_interpretation(score):
-    print(score)
     if 0 <= score < 1:
         return "No apparent risk"
     elif 1 <= score < 2:
@@ -207,14 +200,20 @@ def generate_random_scenario():
     random_scenario = db.t.scenarios(order_by='RANDOM()')[0]
     random_age = db.t.ages(order_by='RANDOM()')[0]
     random_ethnicity = db.t.ethnicities(order_by='RANDOM()')[0]
+    random_time = db.t.times(order_by='RANDOM()')[0]
+    random_sex = db.t.sex(order_by='RANDOM()')[0]
     
     completed_scenario = random_scenario.full_text.format(
         age=random_age.age,
-        ethnicity=random_ethnicity.ethnicity)
+        ethnicity=random_ethnicity.ethnicity,
+        time = random_time.time_str,
+        sex=random_sex.sex)
     return {'scenario': completed_scenario,
             'scenario_id': random_scenario.id,
             'age_id': random_age.id,
-            'ethnicity_id':random_ethnicity.id}
+            'ethnicity_id':random_ethnicity.id,
+            'time_id': random_time.id,
+            'sex_id':random_sex.id}
         
 @app.get("/")
 def home():
@@ -302,7 +301,7 @@ def submit_user_answers(request):
     generating_answers = P('Generating answers...', cls='generating_answers')
     risk_score = request.query_params.get('risk_slider_score')
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
-    batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_PER_USER)
+    batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_GENERATED_PER_MODEL)
     answers_div= Div(Hr(),P('Generating your answers'), Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
@@ -315,8 +314,7 @@ def generate_user_plot(request):
     user_id = request.session['user_id']
     sql_query = "SELECT * FROM ai_submissions WHERE linked_human_submission = "+ str(user_id)
     completed_ai_submissions = db.q(sql_query)
-    print('Number of completed submissions:', len(completed_ai_submissions))
-    if len(completed_ai_submissions) < NUMBER_OF_RESPONSES_PER_USER:
+    if len(completed_ai_submissions) < (NUMBER_OF_MODELS_TO_COMPARE * NUMBER_OF_RESPONSES_GENERATED_PER_MODEL):
             progress_bar = Progress(cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML')
             return progress_bar

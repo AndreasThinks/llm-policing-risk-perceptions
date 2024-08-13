@@ -1,6 +1,6 @@
 from fasthtml.common import *
 
-opening_para = ''' Welcome to Copbot Live! This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk.
+opening_para = ''' Welcome to Copbot Live! This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk. You can read more about CopBot [here](https://andreasthinks.me/posts/Copbot/explainer.html).
 
 If you're happy to take part, the paragraph below will give you a quick explainer of how policing in the UK assesses the risk around missing people - you can read more at the [College of Policing website](https://www.college.police.uk/app/major-investigation-and-public-protection/missing-persons).
 
