@@ -127,6 +127,9 @@ def generate_user_prediction_plot(user_id):
     # Ensure y-axis starts at 0 and extends slightly above the maximum count
     fig.update_yaxes(range=[0, max_count * 1.1], zeroline=True, zerolinewidth=2, zerolinecolor='lightgray', rangemode='nonnegative')
 
+    fig.update_xaxes(autorange=True)
+    fig.update_yaxes(autorange=True)
+
     plot_html = plotly.io.to_html(fig, full_html=False)
     first_model = models[0]
     second_model = models[1]
