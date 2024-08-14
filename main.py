@@ -291,7 +291,7 @@ def get_grading_form(request):
     3: "High risk"
     }
 
-    start_risk = random.uniform(0, 3)
+    start_risk = round(random.uniform(0, 3),1)
     
     slider_container = Div(
         Label('Risk'),
