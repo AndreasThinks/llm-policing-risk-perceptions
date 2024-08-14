@@ -44,10 +44,18 @@ def require_admin(func):
 
 css = Style('''
 .details_div, .introductory_text, .scenario_div {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* Media query for screens smaller than 1024px */
+@media screen and (max-width: 1024px) {
+  .details_div, .introductory_text, .scenario_div {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 .model_comparison_div {
     display: flex;
@@ -181,7 +189,7 @@ NUMBER_OF_RESPONSES_GENERATED_PER_MODEL = 20
 # add rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
-app,rt = fast_app(hdrs=(picolink, css, MarkdownJS()), middleware=[auth], name='CopBot Live', htmlkw={'data-theme:':'light'})
+app,rt = fast_app(hdrs=(picolink, css, MarkdownJS()), middleware=[auth], name='CopBot Live', htmlkw={'data-theme':'light'})
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
