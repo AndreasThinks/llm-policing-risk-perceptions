@@ -122,17 +122,10 @@ css = Style('''
     width: 2px;
 }
 
-.tick::before {
-    content: attr(data-tick-value);
-    position: absolute;
-    top: 20px;
-    font-size: 12px;
-}
-
 .tick.big::after {
     content: attr(data-risk-level);
     position: absolute;
-    top: 40px;
+    top: 25px;
     font-size: 14px;
     font-weight: bold;
     white-space: nowrap;
@@ -292,10 +285,10 @@ def show_user_scenario(request):
 def get_grading_form(request):
 
     risk_levels = {
-    0: "No Risk",
-    1: "Low Risk",
-    2: "Medium Risk",
-    3: "High Risk"
+    0: "Very low risk",
+    1: "Low risk",
+    2: "Medium risk",
+    3: "High risk"
     }
 
     start_risk = random.uniform(0, 3)
@@ -303,10 +296,9 @@ def get_grading_form(request):
     slider_container = Div(
         Label('Risk'),
         Div(
-            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider', name='risk_slider_score',id='risk_slider_score'),
+            Input(type='range', min=0, max=3, step=0.1, value=start_risk, cls='slider', name='risk_slider_score', id='risk_slider_score'),
             Div(
                 *[Div(
-                    data_tick_value=i,
                     data_risk_level=risk_levels.get(i, ""),
                     cls=f"tick {'big' if i.is_integer() else ''}"
                 ) for i in np.arange(0, 3.1, 0.5)],
