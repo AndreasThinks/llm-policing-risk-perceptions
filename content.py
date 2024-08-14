@@ -30,7 +30,7 @@ introductory_div = Div(Div(opening_para,cls='marked'), missing_explainer_div, cl
 
 police_nature_form = Fieldset(Legend('Which of the following best describes you?'),
                               Label(Input("I'm a police officer", type='checkbox', name='police_officer'), id="is_police_officer_checkbox"),
-                              Label(Input("I'm part of the wider policing famly (like police staff)",id="is_police_family", type='checkbox', name='police_family'),id='is_police_family_checkbox'),
+                              Label(Input("I'm part of the wider policing family (eg, retired officers or police staff)",id="is_police_family", type='checkbox', name='police_family'),id='is_police_family_checkbox'),
                               Label(Input("I'm a member of the public", id="is_public", type='checkbox', name='public'), id='is_public_checkbox'),cls='stacked_buttons')
                        
 

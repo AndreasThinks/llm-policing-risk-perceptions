@@ -319,7 +319,7 @@ def submit_user_answers(request):
     db.t.human_submissions.update(id=request.session['user_id'], risk_score=float(risk_score))
     logger.debug(f"User {request.session['user_id']} submitted risk score: {risk_score}")
     batch_generate_scenario_predictions(request.session['user_id'], NUMBER_OF_RESPONSES_GENERATED_PER_MODEL)
-    answers_div= Div(Hr(),P('Generating your answers'), Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
+    answers_div= Div(Hr(), Progress( cls='refreshing_loading_bar', id='refreshing_loading_bar_id',
                      hx_get='/generate_user_plot', hx_trigger="every 5s", hx_target='#refreshing_loading_bar_id', hx_swap='outerHTML'))
     return answers_div
 
