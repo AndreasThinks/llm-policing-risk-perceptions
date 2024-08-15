@@ -5,17 +5,19 @@ from plotly.subplots import make_subplots
 import numpy as np
 import plotly
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
 from scipy import stats
 
-from fasthtml.common import NotStr
+from fasthtml.common import NotStr, Div, Container, Br, A
 
 def generate_user_prediction_plot(user_id):
     connection = db.conn
     query_with_llm_join = "SELECT risk_score, linked_human_submission, linked_model_id, model_number, llms.model FROM ai_submissions JOIN llms ON ai_submissions.linked_model_id=llms.id WHERE linked_human_submission=" + str(user_id)
     ai_submission_df = pd.read_sql(query_with_llm_join, connection)
+    
+    # Check if there are any AI submissions
+    if ai_submission_df.empty:
+        return Container(Div("No AI submissions found for this user ID."))
+    
     user_risk_score = db.t.human_submissions("id=" + str(user_id))[0].risk_score
     user_df = pd.DataFrame([[user_risk_score,'You']], columns=["risk_score",'model'])
     df = pd.concat([ai_submission_df, user_df])
@@ -23,14 +25,12 @@ def generate_user_prediction_plot(user_id):
     def create_distribution_line(data, color):
         try:
             kde = stats.gaussian_kde(data)
-            x_range = np.linspace(0, 3, 300)  # Increased resolution for smoother line
+            x_range = np.linspace(0, 3, 300)
             y_kde = kde(x_range)
             
-            # Calculate the histogram with bin width of 0.1
-            bin_edges = np.arange(0, 3.1, 0.1)  # 0 to 3 inclusive, with 0.1 width
+            bin_edges = np.arange(0, 3.1, 0.1)
             hist, _ = np.histogram(data, bins=bin_edges, density=True)
             
-            # Scale KDE to match the maximum height of the histogram
             max_hist_height = np.max(hist)
             y_kde_scaled = y_kde * (max_hist_height / np.max(y_kde))
             
@@ -41,7 +41,6 @@ def generate_user_prediction_plot(user_id):
                 line=dict(color=color, width=2)
             )
         except np.linalg.LinAlgError:
-            # Fallback to cumulative distribution function if KDE fails
             sorted_data = np.sort(data)
             cumulative = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
             return go.Scatter(
@@ -51,20 +50,21 @@ def generate_user_prediction_plot(user_id):
                 line=dict(color=color, width=2)
             )
 
-    # Assuming df is your DataFrame with 'risk_score' and 'model' columns
     models = [model for model in df['model'].unique() if model != "You"]
+    
+    # Check if we have at least two models
+    if len(models) < 2:
+        return Container(Div("Not enough models to generate a comparison plot."))
+    
     colors = ['blue', 'red']
 
-    # Create figure
     fig = make_subplots()
 
-    max_count = 0  # To keep track of the maximum count for scaling the "You" line
+    max_count = 0
 
-    # Add traces for each model (excluding "You")
-    for i, model in enumerate(models):
+    for i, model in enumerate(models[:2]):  # Limit to first two models
         model_data = df[df['model'] == model]['risk_score']
         
-        # Add histogram with fixed bin width of 0.1
         hist = go.Histogram(
             x=model_data,
             name=model,
@@ -74,15 +74,12 @@ def generate_user_prediction_plot(user_id):
         )
         fig.add_trace(hist)
         
-        # Update max_count
         max_count = max(max_count, max(hist.y) if hist.y else 0)
         
-        # Add distribution line
         distribution_line = create_distribution_line(model_data, colors[i])
         distribution_line.name = f'{model} Distribution'
         fig.add_trace(distribution_line)
 
-    # Add "You" as a vertical line spanning the entire height
     you_data = df[df['model'] == "You"]['risk_score'].iloc[0]
     fig.add_shape(
         type="line",
@@ -104,7 +101,6 @@ def generate_user_prediction_plot(user_id):
         )
     )
 
-    # Update layout
     fig.update_layout(
         xaxis_title='Risk Score',
         yaxis_title='Count',
@@ -121,12 +117,8 @@ def generate_user_prediction_plot(user_id):
         plot_bgcolor='rgba(0,0,0,0)'
     )
 
-    # Set x-axis range and tick marks
     fig.update_xaxes(range=[0, 3.2], dtick=0.5)
-
-    # Ensure y-axis starts at 0 and extends slightly above the maximum count
     fig.update_yaxes(range=[0, max_count * 1.1], zeroline=True, zerolinewidth=2, zerolinecolor='lightgray', rangemode='nonnegative')
-
     fig.update_xaxes(autorange=True)
     fig.update_yaxes(autorange=True)
 
@@ -137,8 +129,8 @@ def generate_user_prediction_plot(user_id):
     first_model_response_count = len(ai_submission_df[ai_submission_df['model'] == first_model])
     second_model_response_count = len(ai_submission_df[ai_submission_df['model'] == second_model])
 
-    first_model_mean = round(ai_submission_df[ai_submission_df['model'] == first_model]['risk_score'].mean(),1)
-    second_model_mean = round(ai_submission_df[ai_submission_df['model'] == second_model]['risk_score'].mean(),1)
+    first_model_mean = round(ai_submission_df[ai_submission_df['model'] == first_model]['risk_score'].mean(), 1)
+    second_model_mean = round(ai_submission_df[ai_submission_df['model'] == second_model]['risk_score'].mean(), 1)
 
     groq_string = f"groq/"
 
