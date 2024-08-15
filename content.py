@@ -1,6 +1,6 @@
 from fasthtml.common import *
 
-opening_para = ''' Welcome to Copbot Online. This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk. You'll be presented with a theoretical scenario, and asked to conduct an assessment - once you have submitted your response, you will see how you compare to a range of AI models. You can read more about CopBot [here](https://andreasthinks.me/posts/Copbot/explainer.html). If you're happy to take part, read through the guidance below to get started.
+opening_para = '''Welcome to Copbot Online! This is a prototype project by [me](https://andreasthinks.me/about.html), that aims to help us understand how AI models and humans differ in their perception of risk. You'll be presented with a theoretical scenario, and asked to conduct an assessment - once you have submitted your response, you will see how you compare to a range of AI models. You can read more about CopBot [here](https://andreasthinks.me/posts/Copbot/explainer.html). If you're happy to take part, read through the guidance below to get started.
 
 Missing people in England and Wales are assessed based on guidance from [the College of Policing](https://www.college.police.uk/app/major-investigation-and-public-protection/missing-persons), the professional body for policing. The guidance is designed to help police officers and staff assess the risk to a missing person, and to help them decide on the appropriate response. 
 '''
@@ -25,7 +25,9 @@ Once you're happy you've read through these principles, and you're ready to star
 
 missing_explainer_div = Div(Div(introductory_text,cls='marked'), Img(src='static/missing_risks.png'), cls='introductory_text')
 
-introductory_div = Div(Div(opening_para,cls='marked'), missing_explainer_div, cls='introduction_block')
+introductory_div = Div(Small(opening_para,cls='marked'),
+                        missing_explainer_div,
+                          cls='introduction_block')
 
 
 police_nature_form = Fieldset(Legend('Which of the following best describes you?'),

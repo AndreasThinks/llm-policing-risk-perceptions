@@ -43,7 +43,7 @@ def require_admin(func):
 
 
 css = Style('''
-.details_div, .introductory_text, .scenario_div {
+.details_div, .introductory_text {
   display: flex;
   flex-direction: row;
   justify-content: space-around;
@@ -52,108 +52,127 @@ css = Style('''
 
 /* Media query for screens smaller than 1024px */
 @media screen and (max-width: 1024px) {
-  .details_div, .introductory_text, .scenario_div {
+  .details_div, .introductory_text {
     flex-direction: column;
     align-items: stretch;
   }
 }
+
 .model_comparison_div {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
-    margin: 20px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  margin: 20px;
 }
-        
+
 .slider-container {
-    width: 100%;
-    margin: 40px 0;
-            
+  width: 100%;
+  margin: 40px 0;
 }
 
 .slider {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 15px;
-    border-radius: 5px;
-    background: #d3d3d3;
-    outline: none;
-    opacity: 0.7;
-    transition: opacity .2s;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 15px;
+  border-radius: 5px;
+  background: #d3d3d3;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity .2s;
 }
 
 .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    background: #4CAF50;
-    cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
 }
 
 .slider::-moz-range-thumb {
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    background: #4CAF50;
-    cursor: pointer;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
 }
 
 .ticks {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 10px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
 }
 
 .tick {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    width: 1px;
-    background: #000;
-    height: 10px;
-    line-height: 50px;
-    margin-bottom: 20px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 1px;
+  background: #000;
+  height: 10px;
+  line-height: 50px;
+  margin-bottom: 20px;
 }
 
 .tick.big {
-    height: 20px;
-    width: 2px;
+  height: 20px;
+  width: 2px;
 }
 
 .tick.big::after {
-    content: attr(data-risk-level);
-    position: absolute;
-    top: 25px;
-    font-size: 14px;
-    font-weight: bold;
-    white-space: nowrap;
+  content: attr(data-risk-level);
+  position: absolute;
+  top: 25px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
 }
+
 #submit_buttom {
-                margin-top: 20px;
-            }
+  margin-top: 20px;
+}
+
 .first_model_text {
-            text-color: orange;
-            font-size: 20px;
-            }
+  color: orange;
+  font-size: 20px;
+}
 
 .second_model_text {
-            text-color: blue;
-            font-size: 20px;
-            }
+  color: blue;
+  font-size: 20px;
+}
 
 button {
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
-    #risk_form {
-            margin-top: 20px;
-            }
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
 
-    container { 
-            margin-top: 20px;
-            }
+#risk_form {
+  margin-top: 20px;
+}
+
+.container {
+  margin-top: 20px;
+}
+
+#details_form {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.scenario_div {
+  padding: 20px;
+}
+            
+body > main:nth-child(2) {
+  padding-bottom: 0px;
+            padding-top: 0px;
+}
+
+
 ''')
 
 
@@ -231,9 +250,11 @@ def generate_random_scenario():
 @app.get("/")
 def home():
     logger.info("Home page accessed")
-    return (Title('Copbot Live'),
-            Container(
+    return (Title('Copbot Online'),
+                Titled('Copbot Online'),
+                Container(
                 introductory_div,
+                Hr(),
                 Form(
                 details_div,
                 Button('Start', id='start_button'), hx_get='/show_user_scenario', hx_target='#start_button', hx_swap='outerHTML'),id='main_body_container'))
@@ -267,7 +288,7 @@ def show_user_scenario(request):
     request.session['user_id'] = new_user.id
     logger.debug(f"New user created with ID: {new_user.id}")
 
-    scenario_div = Strong(generated_scenario['scenario'], cls='scenario_div')
+    scenario_div = Div(Strong(generated_scenario['scenario']), cls='scenario_div')
     
     opening_line = Div("Here is your scenario:")
 
@@ -277,7 +298,7 @@ def show_user_scenario(request):
 
     closing_line = Div("When you're ready, press the button to submit your risk assessment.")
 
-    scenario_page = Container(opening_line, Hr(), scenario_div, Hr(),closing_line, submission_div)
+    scenario_page = Container(Hr(), opening_line, scenario_div,closing_line, Hr(), submission_div)
     
     return scenario_page
 
