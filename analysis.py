@@ -17,7 +17,14 @@ def get_analysis_dataframe():
         WHERE human_submissions.risk_score IS NOT NULL
         """
     connection = db.conn
-    return pd.read_sql(sql_query, connection)
+    
+    # Read the SQL query in chunks and concatenate the results
+    chunks = []
+    for chunk in pd.read_sql_query(sql_query, connection, chunksize=10000):
+        chunks.append(chunk)
+    
+    # Concatenate all chunks into a single DataFrame
+    return pd.concat(chunks, ignore_index=True)
 
 def generate_analysis_table():
     df = get_analysis_dataframe ()
@@ -61,4 +68,11 @@ def get_avg_risk_score_by_llm_and_variable(variable):
     """
     
     connection = db.conn
-    return pd.read_sql(sql_query, connection)
+    
+    # Read the SQL query in chunks and concatenate the results
+    chunks = []
+    for chunk in pd.read_sql_query(sql_query, connection, chunksize=10000):
+        chunks.append(chunk)
+    
+    # Concatenate all chunks into a single DataFrame
+    return pd.concat(chunks, ignore_index=True)
