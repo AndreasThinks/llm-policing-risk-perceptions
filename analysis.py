@@ -119,7 +119,7 @@ def get_regression_by_variable(variable):
     # Concatenate all chunks into a single DataFrame
     df = pd.concat(chunks, ignore_index=True).dropna(axis=0)
 
-    formula = f"risk_score ~ 0 + C(age) + C(time) + C(ethnicity) + C(sex) + C(llm_model) + C({variable}):C(llm_model)"
+    formula = f"risk_score ~ 0 + C(age) + C(time) + C(risk) + C(ethnicity) + C(sex) + C(llm_model) + C({variable}):C(llm_model)"
 
     mod = smf.ols(formula=formula, data=df)
 
