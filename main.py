@@ -433,7 +433,7 @@ async def extract_results_csv(request):
 
 
 @app.get("/admin/clear_results")
-def clear_results():
+async def clear_results():
     # Clear all tables
     for table in [db.t.scenarios, db.t.human_submissions, db.t.ai_submissions, db.t.ages, db.t.ethnicities, db.t.llms]:
         table.delete()
@@ -444,7 +444,7 @@ def clear_results():
     return "All results cleared and tables re-initialized."
 
 @app.get("/admin/regression_results")
-def display_results():
+async def display_results():
     results = generate_analysis_table()
     return results.as_html()
 
