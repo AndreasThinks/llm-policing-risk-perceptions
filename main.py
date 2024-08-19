@@ -449,8 +449,8 @@ async def display_results():
     return results.as_html()
 
 
-@app.get("/admin/average_impact/{factor}")
-def get_average_impact(factor : str):
+@app.get("/average_impact/{factor}")
+async def get_average_impact(factor : str):
     results = get_avg_risk_score_by_llm_and_variable(factor)
     return results.to_html()
 
