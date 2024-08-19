@@ -251,6 +251,7 @@ def generate_random_scenario():
 def home():
     logger.info("Home page accessed")
     return (Title('Copbot Online'),
+             Favicon(light_icon='static/favicon.ico', dark_icon='static/favicon.ico'),
                 Titled('Copbot Online'),
                 Container(
                 introductory_div,
