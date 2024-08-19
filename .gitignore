@@ -9,3 +9,7 @@ wheels/
 # venv
 .venv
 .aider*
+
+.env
+.sesskey
+data/

@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import generate_analysis_table
+from analysis import generate_analysis_table, get_avg_risk_score_by_llm_and_variable
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -442,10 +442,16 @@ def clear_results():
     
     return "All results cleared and tables re-initialized."
 
-@app.get("/admin/analyse_results")
+@app.get("/admin/regression_results")
 def display_results():
     results = generate_analysis_table()
     return results.as_html()
+
+
+@app.get("/admin/average_impact/{factor}")
+def get_average_impact(factor : str):
+    results = get_avg_risk_score_by_llm_and_variable(factor)
+    return results.to_html()
 
 
 serve()
