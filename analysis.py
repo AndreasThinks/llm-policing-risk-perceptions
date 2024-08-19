@@ -81,3 +81,47 @@ def get_avg_risk_score_by_llm_and_variable(variable):
     
     # Concatenate all chunks into a single DataFrame
     return pd.concat(chunks, ignore_index=True)
+
+
+def get_regression_by_variable(variable):
+    valid_variables = {
+        'age': 'ages.age',
+        'ethnicity': 'ethnicities.ethnicity',
+        'time': 'times.time_str',
+        'sex': 'sex.sex',
+        'risk': 'scenarios.risk_description'
+    }
+    
+    if variable not in valid_variables:
+        raise ValueError(f"Invalid variable. Choose from: {', '.join(valid_variables.keys())}")
+    
+    variable_column = valid_variables[variable]
+    
+    sql_query = """
+    SELECT human_submissions.id, scenarios.risk_description as risk, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score, llms.model as llm_model
+    FROM ai_submissions
+    LEFT JOIN human_submissions ON ai_submissions.linked_human_submission = human_submissions.id
+    LEFT JOIN ethnicities on human_submissions.ethnicity = ethnicities.id
+    LEFT JOIN sex on human_submissions.sex = sex.id
+    LEFT JOIN scenarios on scenarios.id  = human_submissions.scenario_id 
+    LEFT JOIN ages on ages.id = human_submissions.age
+    LEFT JOIN times on human_submissions.time = times.id
+    LEFT JOIN llms on ai_submissions.linked_model_id = llms.id
+    """
+
+    connection = db.conn
+    
+    # Read the SQL query in chunks and concatenate the results
+    chunks = []
+    for chunk in pd.read_sql_query(sql_query, connection, chunksize=100):
+        chunks.append(chunk)
+    
+    # Concatenate all chunks into a single DataFrame
+    df = pd.concat(chunks, ignore_index=True).dropna(axis=0)
+
+    formula = f"risk_score ~ 0 + C(age) + C(time) + C(ethnicity) + C(sex) + C(llm_model) + C({variable}):C(llm_model)"
+
+    mod = smf.ols(formula=formula, data=df)
+
+    res = mod.fit()
+    return res.summary()
