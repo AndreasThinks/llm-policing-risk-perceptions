@@ -154,49 +154,51 @@ def generate_user_prediction_plot(user_id):
     return Container(first_line, second_line, Br(), NotStr(plot_html))
 
 
-def generate_predictions_by_age_plot(effect_comparison_df):
-    df = effect_comparison_df.copy()
+import plotly.graph_objects as go
+import numpy as np
+from scipy import stats
+import plotly.colors
 
-    def mean_confidence_interval(data, confidence=0.95):
-        mean = np.mean(data)
-        se = stats.sem(data)
-        ci = se * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
-        return mean, mean - ci, mean + ci
+def mean_confidence_interval(data, confidence=0.95):
+    mean = np.mean(data)
+    se = stats.sem(data)
+    ci = se * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
+    return mean, mean - ci, mean + ci
 
-    # Get unique models
+def generate_predictions_plot(df, x_column, title, x_axis_title):
     models = df['model'].unique()
-
-    # Create figure
+    
     fig = go.Figure()
-
-    # Add traces for each model
-    for model in models:
+    
+    colors = plotly.colors.qualitative.Plotly  # Use Plotly's default color scheme
+    
+    for i, model in enumerate(models):
         model_data = df[df['model'] == model]
         
-        # Group by age and calculate mean and confidence interval
-        grouped = model_data.groupby('age')['predicted_risk'].apply(mean_confidence_interval).reset_index()
+        grouped = model_data.groupby(x_column)['predicted_risk'].apply(mean_confidence_interval).reset_index()
         grouped['mean'] = grouped['predicted_risk'].apply(lambda x: x[0])
         grouped['lower_ci'] = grouped['predicted_risk'].apply(lambda x: x[1])
         grouped['upper_ci'] = grouped['predicted_risk'].apply(lambda x: x[2])
         
-        # Determine visibility
         visible = True if model == "human" else "legendonly"
+        color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
         # Add main line
         fig.add_trace(go.Scatter(
-            x=grouped['age'],
+            x=grouped[x_column],
             y=grouped['mean'],
             mode='lines',
-            name=f'{model} - Mean',
+            name=f'{model}',
+            line=dict(color=color),
             visible=visible
         ))
         
-        # Add confidence interval
+        # Add confidence interval with increased transparency
         fig.add_trace(go.Scatter(
-            x=grouped['age'].tolist() + grouped['age'].tolist()[::-1],
+            x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
             y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
             fill='toself',
-            fillcolor=f'rgba(0,100,80,0.2)',
+            fillcolor=color.replace('rgb', 'rgba').replace(')', ',0.1)'),  # Reduced opacity to 10%
             line=dict(color='rgba(255,255,255,0)'),
             hoverinfo="skip",
             showlegend=False,
@@ -205,8 +207,14 @@ def generate_predictions_by_age_plot(effect_comparison_df):
         ))
 
     fig.update_layout(
-        title='Predicted Risk by Age with 95% Confidence Intervals',
-        xaxis_title='Age',
+        title={
+            'text': title,
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title=x_axis_title,
         yaxis_title='Predicted Risk',
         legend_title='Model',
         hovermode="x unified",
@@ -218,83 +226,28 @@ def generate_predictions_by_age_plot(effect_comparison_df):
             y=1.02,
             xanchor="right",
             x=1
-        )
+        ),
+        margin=dict(t=100)  # Increase top margin
     )
     fig.update_yaxes(range=[0, 4])
 
     return fig
+
+def generate_predictions_by_age_plot(effect_comparison_df):
+    return generate_predictions_plot(
+        effect_comparison_df, 
+        'age', 
+        'Predicted Risk by Age with 95% Confidence Intervals',
+        'Age'
+    )
 
 def generate_predictions_by_time_missing_plot(effect_comparison_df):
-
-    df = effect_comparison_df.copy()
-
-    def mean_confidence_interval(data, confidence=0.95):
-        mean = np.mean(data)
-        se = stats.sem(data)
-        ci = se * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
-        return mean, mean - ci, mean + ci
-
-    # Get unique models
-    models = df['model'].unique()
-
-    # Create figure
-    fig = go.Figure()
-
-    # Add traces for each model
-    for model in models:
-        model_data = df[df['model'] == model]
-        
-        # Group by hours_missing and calculate mean and confidence interval
-        grouped = model_data.groupby('hours_missing')['predicted_risk'].apply(mean_confidence_interval).reset_index()
-        grouped['mean'] = grouped['predicted_risk'].apply(lambda x: x[0])
-        grouped['lower_ci'] = grouped['predicted_risk'].apply(lambda x: x[1])
-        grouped['upper_ci'] = grouped['predicted_risk'].apply(lambda x: x[2])
-        
-        # Determine visibility
-        visible = True if model == "human" else "legendonly"
-        
-        # Add main line
-        fig.add_trace(go.Scatter(
-            x=grouped['hours_missing'],
-            y=grouped['mean'],
-            mode='lines',
-            name=f'{model} - Mean',
-            visible=visible
-        ))
-        
-        # Add confidence interval
-        fig.add_trace(go.Scatter(
-            x=grouped['hours_missing'].tolist() + grouped['hours_missing'].tolist()[::-1],
-            y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
-            fill='toself',
-            fillcolor=f'rgba(0,100,80,0.2)',
-            line=dict(color='rgba(255,255,255,0)'),
-            hoverinfo="skip",
-            showlegend=False,
-            name=f'{model} - CI',
-            visible=visible
-        ))
-
-    # Update layout
-    fig.update_layout(
-        title='Predicted Risk by Hours Missing with 95% Confidence Intervals',
-        xaxis_title='Hours Missing',
-        yaxis_title='Predicted Risk',
-        legend_title='Model',
-        hovermode="x unified",
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+    return generate_predictions_plot(
+        effect_comparison_df, 
+        'hours_missing', 
+        'Predicted Risk by Hours Missing with 95% Confidence Intervals',
+        'Hours Missing'
     )
-    fig.update_yaxes(range=[0, 4])
-
-    return fig
 
 
 def generate_categorical_impact_plots(effect_comparison_df):
