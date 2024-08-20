@@ -163,10 +163,6 @@ import plotly.graph_objs as go
 import plotly.colors
 import pandas as pd
 import numpy as np
-from scipy import stats
-
-def mean_se(data):
-    return np.mean(data), stats.sem(data)
 
 def generate_predictions_plot(df, x_column, title, x_axis_title):
     models = df['model'].unique()
@@ -182,37 +178,39 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
         # Calculate mean and standard error for each x value
-        grouped = model_data.groupby(x_column)['predicted_risk'].apply(mean_se).reset_index()
-        grouped['mean'] = grouped['predicted_risk'].apply(lambda x: x[0])
-        grouped['se'] = grouped['predicted_risk'].apply(lambda x: x[1])
+        grouped = model_data.groupby(x_column)['predicted_risk'].agg(['mean', 'std', 'count']).reset_index()
+        grouped['se'] = grouped['std'] / np.sqrt(grouped['count'])
         
-        # Create line plot with error bars
+        # Create error bar trace
+        fig.add_trace(go.Scatter(
+            x=grouped[x_column],
+            y=grouped['mean'],
+            error_y=dict(
+                type='data',
+                array=grouped['se'],
+                visible=True,
+                color=color,
+                thickness=1.5,
+                width=5,
+            ),
+            mode='markers',
+            marker=dict(color=color, size=2, opacity=0.6),
+            name=model,
+            legendgroup=model,
+            showlegend=False,
+            visible=visible,
+            hoverinfo='skip'
+        ))
+        
+        # Create line plot
         fig.add_trace(go.Scatter(
             x=grouped[x_column],
             y=grouped['mean'],
             mode='lines',
             name=model,
-            line=dict(color=color),
-            visible=visible
-        ))
-        
-        fig.add_trace(go.Scatter(
-            x=grouped[x_column],
-            y=grouped['mean'] + grouped['se'],
-            mode='lines',
-            line=dict(width=0),
-            showlegend=False,
-            visible=visible
-        ))
-        
-        fig.add_trace(go.Scatter(
-            x=grouped[x_column],
-            y=grouped['mean'] - grouped['se'],
-            mode='lines',
-            line=dict(width=0),
-            fillcolor=color.replace('rgb', 'rgba').replace(')', ',0.3)'),
-            fill='tonexty',
-            showlegend=False,
+            line=dict(color=color, width=2),
+            legendgroup=model,
+            showlegend=True,
             visible=visible
         ))
 
@@ -227,7 +225,7 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         xaxis_title=x_axis_title,
         yaxis_title='Predicted Risk',
         legend_title='Model',
-        hovermode="x unified",
+        hovermode="closest",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         legend=dict(
@@ -252,7 +250,7 @@ def generate_predictions_by_age_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'age', 
-        'Predicted Risk by Age with Standard Error',
+        'Predicted Risk by Age: Mean with Standard Error',
         'Age'
     )
 
@@ -260,7 +258,7 @@ def generate_predictions_by_time_missing_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'hours_missing', 
-        'Predicted Risk by Hours Missing with Standard Error',
+        'Predicted Risk by Hours Missing: Mean with Standard Error',
         'Hours Missing'
     )
 
