@@ -7,13 +7,13 @@ import random
 from starlette.responses import StreamingResponse
 import requests
 from query_llm import batch_generate_scenario_predictions
-from plots import generate_user_prediction_plot
+from plots import create_plotly_plot_div, generate_user_prediction_plot, generate_categorical_impact_plots, generate_predictions_by_time_missing_plot, generate_predictions_by_age_plot
 import pandas as pd
 from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import generate_analysis_table, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
+from analysis import generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -459,6 +459,29 @@ async def get_average_impact(factor : str):
 async def get_regression_impact(factor : str):
     results = get_regression_by_variable(factor)
     return results.as_html()
+
+
+@app.get("/show_results")
+async def show_results():
+    df = generate_effect_comparison_df()
+    risk_by_age_plot = generate_predictions_by_age_plot(df)
+    risk_by_missing_time_plot = generate_predictions_by_time_missing_plot(df)
+    ethnicity_plot, sex_plot, risk_plot = generate_categorical_impact_plots(df)
+
+    results_page = Title('Copbot - Results'), Container(Titled("Results"),
+                            Div('The following plots show the impact of different factors on the risk score prediction. Click on a model in the legend to toggle its visibility.'),
+                            Br(),
+                            create_plotly_plot_div(risk_by_age_plot),
+                            Br(),
+                            create_plotly_plot_div(risk_by_missing_time_plot),
+                            Br(),
+                            create_plotly_plot_div(ethnicity_plot),
+                            Br(),
+                            create_plotly_plot_div(sex_plot),
+                            Br(),
+                            create_plotly_plot_div(risk_plot),
+                            )
+    return results_page
 
 
 serve()

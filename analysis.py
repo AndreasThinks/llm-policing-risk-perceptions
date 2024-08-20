@@ -28,6 +28,41 @@ def get_analysis_dataframe():
     # Concatenate all chunks into a single DataFrame
     return pd.concat(chunks, ignore_index=True).dropna(axis=0)
 
+def generate_effect_comparison_df():
+
+    connection = db.conn
+
+
+    sql_query = """
+    SELECT human_submissions.id, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
+    FROM ai_submissions
+    LEFT JOIN human_submissions ON ai_submissions.linked_human_submission = human_submissions.id
+    LEFT JOIN ethnicities on human_submissions.ethnicity = ethnicities.id
+    LEFT JOIN sex on human_submissions.sex = sex.id
+    LEFT JOIN scenarios on scenarios.id  = human_submissions.scenario_id 
+    LEFT JOIN ages on ages.id = human_submissions.age
+    LEFT JOIN times on human_submissions.time = times.id
+    LEFT JOIN llms on ai_submissions.linked_model_id = llms.id
+    """
+
+    df = pd.read_sql_query(sql_query, connection)
+    human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
+    human_df['model'] = 'human'
+
+
+    llm_df = df.drop(columns=['human_risk_score']).rename(columns={'ai_risk_score': 'predicted_risk', 'llm_model': 'model'}).reset_index(drop=True)
+
+    combined_df = pd.concat([human_df, llm_df], ignore_index=True)
+    time_dict = {'eight PM':8, 'ten PM':10, 'two AM':14, '6 AM':18
+    }
+
+    combined_df['hours_missing'] = combined_df['time'].map(time_dict)
+
+    df = combined_df.copy()
+    return df
+
+
+
 def generate_analysis_table():
     df = get_analysis_dataframe ()
     mod = smf.ols(formula='risk_score ~ 0 + C(age) + C(time) + C(subject_ethnicity)*C(subject_sex)*C(llm_model)', data=df)
