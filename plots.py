@@ -159,23 +159,12 @@ def generate_user_prediction_plot(user_id):
     return Container(first_line, second_line, Br(), NotStr(plot_html))
 
 
-import plotly.graph_objects as go
-import numpy as np
-from scipy import stats
+import plotly.graph_objs as go
 import plotly.colors
+import pandas as pd
+import numpy as np
 
-def mean_confidence_interval(data, confidence=0.95):
-    mean, sem = np.mean(data), stats.sem(data)
-    ci = stats.t.interval(confidence, len(data) - 1, loc=mean, scale=sem)
-    return mean, ci[0], ci[1]
-
-def rgba_to_rgba_string(rgba, alpha=0.1):
-    return f'rgba({int(rgba[0]*255)},{int(rgba[1]*255)},{int(rgba[2]*255)},{alpha})'
-
-def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible_model="human"):
-    if x_column not in df.columns or 'model' not in df.columns or 'predicted_risk' not in df.columns:
-        raise ValueError(f"Required columns not found in dataframe. Needed: {x_column}, model, predicted_risk")
-
+def generate_predictions_plot(df, x_column, title, x_axis_title):
     models = df['model'].unique()
     
     fig = go.Figure()
@@ -185,38 +174,36 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
     for i, model in enumerate(models):
         model_data = df[df['model'] == model]
         
-        grouped = model_data.groupby(x_column)['predicted_risk'].apply(mean_confidence_interval).reset_index()
-        grouped['mean'] = grouped['predicted_risk'].apply(lambda x: x[0])
-        grouped['lower_ci'] = grouped['predicted_risk'].apply(lambda x: x[1])
-        grouped['upper_ci'] = grouped['predicted_risk'].apply(lambda x: x[2])
-        
-        visible = True if model == default_visible_model else "legendonly"
+        visible = True if model == "human" else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
-        # Add main line
+        # Create line plot
+        grouped = model_data.groupby(x_column)['predicted_risk'].mean().reset_index()
         fig.add_trace(go.Scatter(
             x=grouped[x_column],
-            y=grouped['mean'],
+            y=grouped['predicted_risk'],
             mode='lines',
-            name=f'{model}',
+            name=model,  # Use only the model name for the legend
             line=dict(color=color),
-            visible=visible
+            visible=visible,
+            legendgroup=model,  # Group traces by model
+            showlegend=True  # Show in legend
         ))
         
-        # Add confidence interval with increased transparency
-        fig.add_trace(go.Scatter(
-            x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
-            y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
-            fill='toself',
-            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color), 0.1),
-            line=dict(color='rgba(255,255,255,0)'),
-            hoverinfo="skip",
-            showlegend=False,
-            name=f'{model} - CI',
-            visible=visible
+        # Create box plot
+        fig.add_trace(go.Box(
+            x=model_data[x_column],
+            y=model_data['predicted_risk'],
+            name=model,  # Use only the model name for the legend
+            marker_color=color,
+            visible=visible,
+            boxpoints='outliers',  # Only show outliers
+            jitter=0.3,
+            pointpos=-1.8,
+            opacity=0.6,  # Make box plots slightly transparent
+            legendgroup=model,  # Group traces by model
+            showlegend=False  # Don't show in legend
         ))
-
-    y_max = df['predicted_risk'].max() * 1.1  # Add 10% padding
 
     fig.update_layout(
         title={
@@ -229,26 +216,32 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
         xaxis_title=x_axis_title,
         yaxis_title='Predicted Risk',
         legend_title='Model',
-        hovermode="x unified",
+        hovermode="closest",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            yanchor="top",
+            y=-0.2,  # Position legend below the plot
+            xanchor="center",
+            x=0.5,  # Center the legend horizontally
+            bgcolor='rgba(255,255,255,0.5)'  # Semi-transparent white background
         ),
-        margin=dict(t=100)  # Increase top margin
+        margin=dict(b=150)  # Increase bottom margin to accommodate legend
     )
-    fig.update_yaxes(range=[0, y_max])
+    fig.update_yaxes(range=[0, 4])
+    
+    # Update x-axis to be categorical if it's not continuous
+    if df[x_column].dtype == 'object' or df[x_column].dtype.name == 'category':
+        fig.update_xaxes(type='category')
+    
     return fig
 
 def generate_predictions_by_age_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'age', 
-        'Predicted Risk by Age with 95% Confidence Intervals',
+        'Predicted Risk by Age: Trend and Distribution',
         'Age'
     )
 
@@ -256,7 +249,7 @@ def generate_predictions_by_time_missing_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'hours_missing', 
-        'Predicted Risk by Hours Missing with 95% Confidence Intervals',
+        'Predicted Risk by Hours Missing: Trend and Distribution',
         'Hours Missing'
     )
 
