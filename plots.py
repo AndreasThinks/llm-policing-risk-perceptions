@@ -163,6 +163,10 @@ import plotly.graph_objs as go
 import plotly.colors
 import pandas as pd
 import numpy as np
+from scipy import stats
+
+def mean_se(data):
+    return np.mean(data), stats.sem(data)
 
 def generate_predictions_plot(df, x_column, title, x_axis_title):
     models = df['model'].unique()
@@ -177,32 +181,39 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         visible = True if model == "human" else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
-        # Create line plot
-        grouped = model_data.groupby(x_column)['predicted_risk'].mean().reset_index()
+        # Calculate mean and standard error for each x value
+        grouped = model_data.groupby(x_column)['predicted_risk'].apply(mean_se).reset_index()
+        grouped['mean'] = grouped['predicted_risk'].apply(lambda x: x[0])
+        grouped['se'] = grouped['predicted_risk'].apply(lambda x: x[1])
+        
+        # Create line plot with error bars
         fig.add_trace(go.Scatter(
             x=grouped[x_column],
-            y=grouped['predicted_risk'],
+            y=grouped['mean'],
             mode='lines',
-            name=model,  # Use only the model name for the legend
+            name=model,
             line=dict(color=color),
-            visible=visible,
-            legendgroup=model,  # Group traces by model
-            showlegend=True  # Show in legend
+            visible=visible
         ))
         
-        # Create box plot
-        fig.add_trace(go.Box(
-            x=model_data[x_column],
-            y=model_data['predicted_risk'],
-            name=model,  # Use only the model name for the legend
-            marker_color=color,
-            visible=visible,
-            boxpoints='outliers',  # Only show outliers
-            jitter=0.3,
-            pointpos=-1.8,
-            opacity=0.6,  # Make box plots slightly transparent
-            legendgroup=model,  # Group traces by model
-            showlegend=False  # Don't show in legend
+        fig.add_trace(go.Scatter(
+            x=grouped[x_column],
+            y=grouped['mean'] + grouped['se'],
+            mode='lines',
+            line=dict(width=0),
+            showlegend=False,
+            visible=visible
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=grouped[x_column],
+            y=grouped['mean'] - grouped['se'],
+            mode='lines',
+            line=dict(width=0),
+            fillcolor=color.replace('rgb', 'rgba').replace(')', ',0.3)'),
+            fill='tonexty',
+            showlegend=False,
+            visible=visible
         ))
 
     fig.update_layout(
@@ -216,7 +227,7 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         xaxis_title=x_axis_title,
         yaxis_title='Predicted Risk',
         legend_title='Model',
-        hovermode="closest",
+        hovermode="x unified",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         legend=dict(
@@ -241,7 +252,7 @@ def generate_predictions_by_age_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'age', 
-        'Predicted Risk by Age: Trend and Distribution',
+        'Predicted Risk by Age with Standard Error',
         'Age'
     )
 
@@ -249,7 +260,7 @@ def generate_predictions_by_time_missing_plot(effect_comparison_df):
     return generate_predictions_plot(
         effect_comparison_df, 
         'hours_missing', 
-        'Predicted Risk by Hours Missing: Trend and Distribution',
+        'Predicted Risk by Hours Missing with Standard Error',
         'Hours Missing'
     )
 
