@@ -193,16 +193,16 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
         visible = True if model == default_visible_model else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
-        # Add confidence interval area
+        # Add confidence interval area behind the line
         fig.add_trace(go.Scatter(
             x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
             y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
             fill='toself',
-            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color)),
+            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color), alpha=0.3),
             line=dict(color='rgba(255,255,255,0)'),
             name=f'{model} - 95% CI',
             legendgroup=model,
-            showlegend=True,
+            showlegend=False,  # Hide CI from legend
             visible=visible
         ))
         
@@ -262,6 +262,7 @@ def generate_predictions_by_time_missing_plot(effect_comparison_df):
         'Predicted Risk by Hours Missing with 95% Confidence Intervals',
         'Hours Missing'
     )
+
 
 def generate_categorical_impact_plots(effect_comparison_df):
     df = effect_comparison_df.copy()
