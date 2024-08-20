@@ -14,6 +14,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 from scipy import stats
+
 import plotly.graph_objects as go
 import numpy as np
 from scipy import stats
@@ -157,12 +158,18 @@ def generate_user_prediction_plot(user_id):
     second_line = Div("You can now see the", A("full results here", href="/show_results"), ", or ",  A("try again", href='/'), " to see how you compare to other models!")
     return Container(first_line, second_line, Br(), NotStr(plot_html))
 
+
+import plotly.graph_objects as go
+import numpy as np
+from scipy import stats
+import plotly.colors
+
 def mean_confidence_interval(data, confidence=0.95):
     mean, sem = np.mean(data), stats.sem(data)
     ci = stats.t.interval(confidence, len(data) - 1, loc=mean, scale=sem)
     return mean, ci[0], ci[1]
 
-def rgba_to_rgba_string(rgba, alpha=0.1):
+def rgba_to_rgba_string(rgba, alpha=0.2):
     return f'rgba({int(rgba[0]*255)},{int(rgba[1]*255)},{int(rgba[2]*255)},{alpha})'
 
 def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible_model="human"):
@@ -186,26 +193,28 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
         visible = True if model == default_visible_model else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
+        # Add confidence interval area
+        fig.add_trace(go.Scatter(
+            x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
+            y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
+            fill='toself',
+            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color)),
+            line=dict(color='rgba(255,255,255,0)'),
+            name=f'{model} - 95% CI',
+            legendgroup=model,
+            showlegend=True,
+            visible=visible
+        ))
+        
         # Add main line
         fig.add_trace(go.Scatter(
             x=grouped[x_column],
             y=grouped['mean'],
             mode='lines',
             name=f'{model}',
-            line=dict(color=color),
-            visible=visible
-        ))
-        
-        # Add confidence interval with increased transparency
-        fig.add_trace(go.Scatter(
-            x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
-            y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
-            fill='toself',
-            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color), 0.1),
-            line=dict(color='rgba(255,255,255,0)'),
-            hoverinfo="skip",
-            showlegend=False,
-            name=f'{model} - CI',
+            line=dict(color=color, width=2),
+            legendgroup=model,
+            showlegend=True,
             visible=visible
         ))
 
@@ -214,7 +223,7 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
     fig.update_layout(
         title={
             'text': title,
-            'y':0.95,
+            'y':0.98,
             'x':0.5,
             'xanchor': 'center',
             'yanchor': 'top'
@@ -227,12 +236,13 @@ def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible
         plot_bgcolor='rgba(0,0,0,0)',
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            yanchor="top",
+            y=-0.2,
+            xanchor="center",
+            x=0.5,
+            traceorder="reversed"
         ),
-        margin=dict(t=100)  # Increase top margin
+        margin=dict(t=100, b=100)  # Increase top and bottom margins
     )
     fig.update_yaxes(range=[0, y_max])
     return fig
