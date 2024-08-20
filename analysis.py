@@ -61,6 +61,9 @@ def generate_effect_comparison_df():
     df = combined_df.copy()
     return df
 
+def generate_prediction_count_table(df):
+    df = df[['model', 'id']].copy()
+    return df.groupby(['model']).count().reset_index().fillna(0).sort_values(by='id', ascending=True).set_index('model').rename(columns={'id': 'predictions'})
 
 
 def generate_analysis_table():

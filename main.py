@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
+from analysis import generate_prediction_count_table, generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -467,8 +467,11 @@ async def show_results():
     risk_by_age_plot = generate_predictions_by_age_plot(df)
     risk_by_missing_time_plot = generate_predictions_by_time_missing_plot(df)
     ethnicity_plot, sex_plot, risk_plot = generate_categorical_impact_plots(df)
-
+    submitted_predictions_table = generate_prediction_count_table(df)
     results_page = Title('Copbot - Results'), Container(Titled("Results"),
+                            H3('Predictions generated'),
+                            Div(NotStr(submitted_predictions_table.to_html()), cls='model_comparison_div'),
+                            H3('Risk Plots'),
                             Div('The following plots show the impact of different factors on the risk score prediction. Click on a model in the legend to toggle its visibility.'),
                             Br(),
                             create_plotly_plot_div(risk_by_age_plot),
