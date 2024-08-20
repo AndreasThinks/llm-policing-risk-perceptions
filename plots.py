@@ -356,6 +356,8 @@ def generate_categorical_impact_plots(effect_comparison_df):
             yaxis_title='Predicted Risk',
             legend_title='Model',
             barmode='group',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
