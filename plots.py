@@ -14,6 +14,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 from scipy import stats
+import plotly.graph_objects as go
+import numpy as np
+from scipy import stats
+import plotly.colors
 
 from fasthtml.common import NotStr, Div, Container, Br, A
 
@@ -153,19 +157,18 @@ def generate_user_prediction_plot(user_id):
     second_line = Div("You can now see the", A("full results here", href="/show_results"), ", or ",  A("try again", href='/'), " to see how you compare to other models!")
     return Container(first_line, second_line, Br(), NotStr(plot_html))
 
-
-import plotly.graph_objects as go
-import numpy as np
-from scipy import stats
-import plotly.colors
-
 def mean_confidence_interval(data, confidence=0.95):
-    mean = np.mean(data)
-    se = stats.sem(data)
-    ci = se * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
-    return mean, mean - ci, mean + ci
+    mean, sem = np.mean(data), stats.sem(data)
+    ci = stats.t.interval(confidence, len(data) - 1, loc=mean, scale=sem)
+    return mean, ci[0], ci[1]
 
-def generate_predictions_plot(df, x_column, title, x_axis_title):
+def rgba_to_rgba_string(rgba, alpha=0.1):
+    return f'rgba({int(rgba[0]*255)},{int(rgba[1]*255)},{int(rgba[2]*255)},{alpha})'
+
+def generate_predictions_plot(df, x_column, title, x_axis_title, default_visible_model="human"):
+    if x_column not in df.columns or 'model' not in df.columns or 'predicted_risk' not in df.columns:
+        raise ValueError(f"Required columns not found in dataframe. Needed: {x_column}, model, predicted_risk")
+
     models = df['model'].unique()
     
     fig = go.Figure()
@@ -180,7 +183,7 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         grouped['lower_ci'] = grouped['predicted_risk'].apply(lambda x: x[1])
         grouped['upper_ci'] = grouped['predicted_risk'].apply(lambda x: x[2])
         
-        visible = True if model == "human" else "legendonly"
+        visible = True if model == default_visible_model else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
         
         # Add main line
@@ -198,13 +201,15 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
             x=grouped[x_column].tolist() + grouped[x_column].tolist()[::-1],
             y=grouped['upper_ci'].tolist() + grouped['lower_ci'].tolist()[::-1],
             fill='toself',
-            fillcolor=color.replace('rgb', 'rgba').replace(')', ',0.1)'),  # Reduced opacity to 10%
+            fillcolor=rgba_to_rgba_string(plotly.colors.hex_to_rgb(color), 0.1),
             line=dict(color='rgba(255,255,255,0)'),
             hoverinfo="skip",
             showlegend=False,
             name=f'{model} - CI',
             visible=visible
         ))
+
+    y_max = df['predicted_risk'].max() * 1.1  # Add 10% padding
 
     fig.update_layout(
         title={
@@ -229,8 +234,7 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
         ),
         margin=dict(t=100)  # Increase top margin
     )
-    fig.update_yaxes(range=[0, 4])
-
+    fig.update_yaxes(range=[0, y_max])
     return fig
 
 def generate_predictions_by_age_plot(effect_comparison_df):
@@ -248,7 +252,6 @@ def generate_predictions_by_time_missing_plot(effect_comparison_df):
         'Predicted Risk by Hours Missing with 95% Confidence Intervals',
         'Hours Missing'
     )
-
 
 def generate_categorical_impact_plots(effect_comparison_df):
     df = effect_comparison_df.copy()
