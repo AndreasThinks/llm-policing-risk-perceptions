@@ -171,7 +171,7 @@ def product_model_regression_outputs(df):
     for model in model_list:
         try:
             model_df = df[df['model'] == model]
-            ols_model = smf.ols("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
+            ols_model = smf.ols("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
             regression_output_dict[model] = ols_model.summary()
         except PatsyError:
             pass
