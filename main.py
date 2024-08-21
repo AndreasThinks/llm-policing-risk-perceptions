@@ -491,6 +491,7 @@ async def show_results():
                             H3('Regression Analysis'),
                             Br(),
                             Div('For each model, we create a linear model, to try and understand the impact of different factors on the risk score prediction. The tables below show the results of these regressions.'),
+                            Br(),
                             *all_regression_divs
                             )
     return results_page
