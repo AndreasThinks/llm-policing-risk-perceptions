@@ -476,8 +476,8 @@ async def show_results():
     results_page = Title('Copbot - Results'), Container(Titled("Results"),
                             H3('Predictions generated'),
                             Div(NotStr(submitted_predictions_table.to_html()), cls='model_comparison_div'),
-                            H3('Risk Plots'),
-                            Div('The following plots show the impact of different factors on the risk score prediction. Click on a model in the legend to toggle its visibility.'),
+                            H3('Mean Risk Plots'),
+                            Div('The following plots show the average of different factors on the risk score prediction. Click on a model in the legend to toggle its visibility.'),
                             Br(),
                             create_plotly_plot_div(risk_by_age_plot),
                             Br(),
@@ -489,6 +489,7 @@ async def show_results():
                             Br(),
                             create_plotly_plot_div(risk_plot),
                             H3('Regression Analysis'),
+                            Div('For each model, we create a linear model, to try and understand the impact of different factors on the risk score prediction. The tables below show the results of these regressions.'),
                             *all_regression_divs
                             )
     return results_page
