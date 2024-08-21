@@ -3,6 +3,7 @@ import statsmodels.formula.api as smf
 import numpy as np
 from models import db
 import pandas as pd
+from patsy import PatsyError
 
 
 def get_analysis_dataframe():
@@ -163,3 +164,16 @@ def get_regression_by_variable(variable):
 
     res = mod.fit()
     return res.summary()
+
+def product_model_regression_outputs(df):
+    model_list = df['model'].unique()
+    regression_output_dict = {}
+    for model in model_list:
+        try:
+            model_df = df[df['model'] == model]
+            ols_model = smf.ols("predicted_risk ~ 0 + C(risk, Treatment(reference='out_of_character')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
+            regression_output_dict[model] = ols_model.summary()
+        except PatsyError:
+            pass
+    return regression_output_dict
+

@@ -6,18 +6,6 @@ import numpy as np
 import plotly
 import pandas as pd
 from scipy import stats
-import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
-from scipy import stats
-import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
-from scipy import stats
-
-import plotly.graph_objects as go
-import numpy as np
-from scipy import stats
 import plotly.colors
 
 from fasthtml.common import NotStr, Div, Container, Br, A
@@ -158,11 +146,6 @@ def generate_user_prediction_plot(user_id):
     second_line = Div("You can now see the", A("full results here", href="/show_results"), ", or ",  A("try again", href='/'), " to see how you compare to other models!")
     return Container(first_line, second_line, Br(), NotStr(plot_html))
 
-
-import plotly.graph_objs as go
-import plotly.colors
-import pandas as pd
-import numpy as np
 
 def generate_predictions_plot(df, x_column, title, x_axis_title):
     models = df['model'].unique()
