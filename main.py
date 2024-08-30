@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import produce_human_only_regression,  product_human_to_llm_regression, product_model_regression_outputs,  generate_prediction_count_table, generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
+from analysis import produce_human_only_regression,  product_human_to_llm_regression, product_model_regression_outputs,  generate_prediction_count_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -442,11 +442,6 @@ async def clear_results():
     initialize_tables()
     
     return "All results cleared and tables re-initialized."
-
-@app.get("/admin/regression_results")
-async def display_results():
-    results = generate_analysis_table()
-    return results.as_html()
 
 
 @app.get("/average_impact/{factor}")
