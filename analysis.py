@@ -53,7 +53,7 @@ def generate_effect_comparison_df():
         'on': 1,
     }
 
-    df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']].replace(replace_dict)
+    df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']].replace(replace_dict)
 
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
