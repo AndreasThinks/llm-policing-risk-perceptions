@@ -49,6 +49,12 @@ def generate_effect_comparison_df():
     # Filter out rows where ai_risk_score is not a float
     df = df[pd.to_numeric(df['ai_risk_score'], errors='coerce').notnull()]
 
+    replace_dict = {
+        'on': 1,
+    }
+
+    df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']].replace(replace_dict)
+
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
 
@@ -170,9 +176,14 @@ def get_regression_by_variable(variable):
 def product_model_regression_outputs(df):
     model_list = df['model'].unique()
     regression_output_dict = {}
+
     for model in model_list:
         try:
             model_df = df[df['model'] == model]
+            # if any entries in predicted_risk are not numeric, drop them and output error logs with the number of entries dropped and model name
+            if model_df['predicted_risk'].dtype != np.number:
+                model_df = model_df[pd.to_numeric(model_df['predicted_risk'], errors='coerce').notnull()]
+                print(f"Dropped {len(df) - len(model_df)} entries from {model} due to non-numeric values in predicted_risk")
             ols_model = smf.ols("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
             regression_output_dict[model] = ols_model.summary()
         except PatsyError:
