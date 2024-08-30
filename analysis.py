@@ -30,9 +30,7 @@ def get_analysis_dataframe():
     return pd.concat(chunks, ignore_index=True).dropna(axis=0)
 
 def generate_effect_comparison_df():
-
     connection = db.conn
-
 
     sql_query = """
     SELECT human_submissions.id, human_submissions.is_police_officer as is_police_officer, human_submissions.is_police_family as is_police_family, human_submissions.is_public as is_public, human_submissions.is_uk as uk_based, human_submissions.is_us as us_based, human_submissions.is_elsewhere as based_elsewhere, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
@@ -47,9 +45,12 @@ def generate_effect_comparison_df():
     """
 
     df = pd.read_sql_query(sql_query, connection)
+    
+    # Filter out rows where ai_risk_score is not a float
+    df = df[pd.to_numeric(df['ai_risk_score'], errors='coerce').notnull()]
+
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
-
 
     llm_df = df.drop(columns=['human_risk_score']).rename(columns={'ai_risk_score': 'predicted_risk', 'llm_model': 'model'}).reset_index(drop=True)
 
