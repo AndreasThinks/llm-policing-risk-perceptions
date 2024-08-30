@@ -155,7 +155,17 @@ def generate_predictions_plot(df, x_column, title, x_axis_title):
     colors = plotly.colors.qualitative.Plotly  # Use Plotly's default color scheme
     
     for i, model in enumerate(models):
-        model_data = df[df['model'] == model]
+        model_data = df[df['model'] == model].copy()  # Create a copy to avoid SettingWithCopyWarning
+        
+        # Convert 'predicted_risk' to numeric, coercing errors to NaN
+        model_data['predicted_risk'] = pd.to_numeric(model_data['predicted_risk'], errors='coerce')
+        
+        # Drop rows where conversion failed (resulting in NaN)
+        model_data = model_data.dropna(subset=['predicted_risk'])
+        
+        if model_data.empty:
+            print(f"Warning: No valid numeric data for model {model}. Skipping this model.")
+            continue
         
         visible = True if model == "human" else "legendonly"
         color = colors[i % len(colors)]  # Cycle through colors if more models than colors
