@@ -4,7 +4,7 @@ import numpy as np
 from models import db
 import pandas as pd
 from patsy import PatsyError
-import logging
+
 
 def get_analysis_dataframe():
     sql_query = """
@@ -55,7 +55,7 @@ def generate_effect_comparison_df():
         'on': 1,
     }
 
-    df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']].replace(replace_dict)
+    df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']].replace(replace_dict)
 
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
@@ -177,7 +177,6 @@ def get_regression_by_variable(variable):
     return res.summary()
 
 def product_model_regression_outputs(df):
-    logging.basicConfig(level=logging.INFO)
     model_list = df['model'].unique()
     regression_output_dict = {}
 
@@ -189,7 +188,9 @@ def product_model_regression_outputs(df):
             non_numeric_mask = pd.to_numeric(model_df['predicted_risk'], errors='coerce').isnull()
             if non_numeric_mask.any():
                 non_numeric_count = non_numeric_mask.sum()
-                logging.warning(f"Dropped {non_numeric_count} entries from {model} due to non-numeric values in predicted_risk")
+                print(f"WARNING: Dropped {non_numeric_count} entries from {model} due to non-numeric values in predicted_risk")
+                print("Problematic entries:")
+                print(model_df[non_numeric_mask])
                 model_df = model_df[~non_numeric_mask]
                 model_df['predicted_risk'] = pd.to_numeric(model_df['predicted_risk'])
 
@@ -199,7 +200,9 @@ def product_model_regression_outputs(df):
                 missing_mask = model_df[var].isnull()
                 if missing_mask.any():
                     missing_count = missing_mask.sum()
-                    logging.warning(f"Dropped {missing_count} entries from {model} due to missing values in {var}")
+                    print(f"WARNING: Dropped {missing_count} entries from {model} due to missing values in {var}")
+                    print("Problematic entries:")
+                    print(model_df[missing_mask])
                     model_df = model_df[~missing_mask]
 
             # Ensure all categorical variables are of type 'category'
@@ -216,14 +219,20 @@ def product_model_regression_outputs(df):
             ols_model = smf.ols(formula, data=model_df).fit()
             regression_output_dict[model] = ols_model.summary()
             
-            logging.info(f"Successfully fitted model for {model}")
+            print(f"INFO: Successfully fitted model for {model}")
 
         except PatsyError as e:
-            logging.error(f"PatsyError occurred for model {model}: {str(e)}")
+            print(f"ERROR: PatsyError occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
         except ValueError as e:
-            logging.error(f"ValueError occurred for model {model}: {str(e)}")
+            print(f"ERROR: ValueError occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
         except Exception as e:
-            logging.error(f"Unexpected error occurred for model {model}: {str(e)}")
+            print(f"ERROR: Unexpected error occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
 
     return regression_output_dict
 
