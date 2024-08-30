@@ -4,7 +4,7 @@ import numpy as np
 from models import db
 import pandas as pd
 from patsy import PatsyError
-
+import logging
 
 def get_analysis_dataframe():
     sql_query = """
@@ -30,7 +30,9 @@ def get_analysis_dataframe():
     return pd.concat(chunks, ignore_index=True).dropna(axis=0)
 
 def generate_effect_comparison_df():
+
     connection = db.conn
+
 
     sql_query = """
     SELECT human_submissions.id, human_submissions.is_police_officer as is_police_officer, human_submissions.is_police_family as is_police_family, human_submissions.is_public as is_public, human_submissions.is_uk as uk_based, human_submissions.is_us as us_based, human_submissions.is_elsewhere as based_elsewhere, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
@@ -53,10 +55,11 @@ def generate_effect_comparison_df():
         'on': 1,
     }
 
-    df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']].replace(replace_dict)
+    df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'is_uk', 'is_us', 'is_elsewhere']].replace(replace_dict)
 
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
+
 
     llm_df = df.drop(columns=['human_risk_score']).rename(columns={'ai_risk_score': 'predicted_risk', 'llm_model': 'model'}).reset_index(drop=True)
 
@@ -174,20 +177,54 @@ def get_regression_by_variable(variable):
     return res.summary()
 
 def product_model_regression_outputs(df):
+    logging.basicConfig(level=logging.INFO)
     model_list = df['model'].unique()
     regression_output_dict = {}
 
     for model in model_list:
         try:
-            model_df = df[df['model'] == model]
-            # if any entries in predicted_risk are not numeric, drop them and output error logs with the number of entries dropped and model name
-            if model_df['predicted_risk'].dtype != np.number:
-                model_df = model_df[pd.to_numeric(model_df['predicted_risk'], errors='coerce').notnull()]
-                print(f"Dropped {len(df) - len(model_df)} entries from {model} due to non-numeric values in predicted_risk")
-            ols_model = smf.ols("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
+            model_df = df[df['model'] == model].copy()  # Create a copy to avoid SettingWithCopyWarning
+            
+            # Check for non-numeric values in predicted_risk
+            non_numeric_mask = pd.to_numeric(model_df['predicted_risk'], errors='coerce').isnull()
+            if non_numeric_mask.any():
+                non_numeric_count = non_numeric_mask.sum()
+                logging.warning(f"Dropped {non_numeric_count} entries from {model} due to non-numeric values in predicted_risk")
+                model_df = model_df[~non_numeric_mask]
+                model_df['predicted_risk'] = pd.to_numeric(model_df['predicted_risk'])
+
+            # Check for missing values in categorical variables
+            categorical_vars = ['risk', 'sex', 'age', 'hours_missing', 'ethnicity']
+            for var in categorical_vars:
+                missing_mask = model_df[var].isnull()
+                if missing_mask.any():
+                    missing_count = missing_mask.sum()
+                    logging.warning(f"Dropped {missing_count} entries from {model} due to missing values in {var}")
+                    model_df = model_df[~missing_mask]
+
+            # Ensure all categorical variables are of type 'category'
+            for var in categorical_vars:
+                model_df[var] = model_df[var].astype('category')
+
+            # Fit the model
+            formula = ("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + "
+                       "C(sex, Treatment(reference='female')) + "
+                       "C(age, Treatment(reference=25)) + "
+                       "C(hours_missing, Treatment(reference=8)) + "
+                       "C(ethnicity, Treatment(reference='White'))")
+            
+            ols_model = smf.ols(formula, data=model_df).fit()
             regression_output_dict[model] = ols_model.summary()
-        except PatsyError:
-            pass
+            
+            logging.info(f"Successfully fitted model for {model}")
+
+        except PatsyError as e:
+            logging.error(f"PatsyError occurred for model {model}: {str(e)}")
+        except ValueError as e:
+            logging.error(f"ValueError occurred for model {model}: {str(e)}")
+        except Exception as e:
+            logging.error(f"Unexpected error occurred for model {model}: {str(e)}")
+
     return regression_output_dict
 
 
