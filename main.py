@@ -275,9 +275,9 @@ def show_user_scenario(request):
                          'is_police_officer': request.query_params.get('police_officer', False),
                          'is_police_family': request.query_params.get('police_family', False),
                          'is_public': request.query_params.get('public', False),
-                            'is_uk': request.query_params.get('uk', False),
-                            'is_us': request.query_params.get('us', False),
-                            'is_elsewhere': request.query_params.get('elsewhere', False),
+                            'is_uk': request.query_params.get('location') == 'uk', 
+                            'is_us': request.query_params.get('location') == 'us',
+                            'is_elsewhere': request.query_params.get('location') == 'elsewhere',
                             'scenario_text': generated_scenario['scenario']}    
 
     
