@@ -77,8 +77,20 @@ def generate_effect_comparison_df():
 
 def generate_prediction_count_table(df):
     df = df[['model', 'id']].copy()
-    return df.groupby(['model']).count().reset_index().fillna(0).sort_values(by='id', ascending=True).set_index('model').rename(columns={'id': 'predictions'})
-
+    
+    # Group by 'model' and count 'id'
+    grouped = df.groupby(['model']).count().reset_index()
+    
+    # Rename 'id' column to 'predictions'
+    grouped = grouped.rename(columns={'id': 'predictions'})
+    
+    # Sort values by 'predictions' in ascending order
+    grouped = grouped.sort_values(by='predictions', ascending=True)
+    
+    # Set 'model' as index
+    grouped = grouped.set_index('model')
+    
+    return grouped
 
 def get_avg_risk_score_by_llm_and_variable(variable):
     valid_variables = {
