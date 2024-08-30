@@ -6,29 +6,6 @@ import pandas as pd
 from patsy import PatsyError
 
 
-def get_analysis_dataframe():
-    sql_query = """
-    SELECT human_submissions.id, scenarios.risk_description , ages.age as age, times.time_str as time, sex.sex as subject_sex, ethnicities.ethnicity as subject_ethnicity, ai_submissions.risk_score, llms.model as llm_model
-    FROM ai_submissions
-    LEFT JOIN human_submissions ON ai_submissions.linked_human_submission = human_submissions.id
-    LEFT JOIN ethnicities on human_submissions.ethnicity = ethnicities.id
-    LEFT JOIN sex on human_submissions.sex = sex.id
-    LEFT JOIN scenarios on scenarios.id  = human_submissions.scenario_id 
-    LEFT JOIN ages on ages.id = human_submissions.age
-    LEFT JOIN times on human_submissions.time = times.id
-    LEFT JOIN llms on ai_submissions.linked_model_id = llms.id
-    """
-
-    connection = db.conn
-    
-    # Read the SQL query in chunks and concatenate the results
-    chunks = []
-    for chunk in pd.read_sql_query(sql_query, connection, chunksize=100):
-        chunks.append(chunk)
-    
-    # Concatenate all chunks into a single DataFrame
-    return pd.concat(chunks, ignore_index=True).dropna(axis=0)
-
 def generate_effect_comparison_df():
 
     connection = db.conn
@@ -239,6 +216,8 @@ def product_model_regression_outputs(df):
 
 def produce_human_only_regression(df):
     model_df = df[df['model'] == 'human']
+    print('printing predicted risk')
+    print(model_df['predicted_risk'])
     ols_model = smf.ols("predicted_risk ~ is_police_officer + is_police_family + is_public + us_based + based_elsewhere + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
     return ols_model.summary()
 
