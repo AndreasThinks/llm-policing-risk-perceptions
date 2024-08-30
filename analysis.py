@@ -7,59 +7,78 @@ from patsy import PatsyError
 
 
 def generate_effect_comparison_df():
-
     connection = db.conn
-
-
     sql_query = """
     SELECT human_submissions.id, human_submissions.is_police_officer as is_police_officer, human_submissions.is_police_family as is_police_family, human_submissions.is_public as is_public, human_submissions.is_uk as uk_based, human_submissions.is_us as us_based, human_submissions.is_elsewhere as based_elsewhere, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
     FROM ai_submissions
     LEFT JOIN human_submissions ON ai_submissions.linked_human_submission = human_submissions.id
     LEFT JOIN ethnicities on human_submissions.ethnicity = ethnicities.id
     LEFT JOIN sex on human_submissions.sex = sex.id
-    LEFT JOIN scenarios on scenarios.id  = human_submissions.scenario_id 
+    LEFT JOIN scenarios on scenarios.id = human_submissions.scenario_id
     LEFT JOIN ages on ages.id = human_submissions.age
     LEFT JOIN times on human_submissions.time = times.id
     LEFT JOIN llms on ai_submissions.linked_model_id = llms.id
     """
-
     df = pd.read_sql_query(sql_query, connection)
     
     # Filter out rows where ai_risk_score is not a float
     df = df[pd.to_numeric(df['ai_risk_score'], errors='coerce').notnull()]
-
-    replace_dict = {
-        'on': 1,
-    }
-
-    df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']] = df[['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']].replace(replace_dict)
-
+    
+    replace_dict = {'on': 1, 'off': 0}
+    boolean_columns = ['is_police_officer', 'is_police_family', 'is_public', 'uk_based', 'us_based', 'based_elsewhere']
+    df[boolean_columns] = df[boolean_columns].replace(replace_dict)
+    
     human_df = df.drop(columns=['ai_risk_score', 'llm_model']).drop_duplicates(subset=['id']).reset_index(drop=True).rename(columns={'human_risk_score': 'predicted_risk'})
     human_df['model'] = 'human'
-
-
+    
     llm_df = df.drop(columns=['human_risk_score']).rename(columns={'ai_risk_score': 'predicted_risk', 'llm_model': 'model'}).reset_index(drop=True)
-
+    
     combined_df = pd.concat([human_df, llm_df], ignore_index=True)
-    time_dict = {'eight PM':8, 'ten PM':10, 'two AM':14, '6 AM':18
-    }
-
+    
+    time_dict = {'eight PM': 8, 'ten PM': 10, 'two AM': 14, '6 AM': 18}
     combined_df['hours_missing'] = combined_df['time'].map(time_dict)
-
-    df = combined_df.copy()
-    return df
+    
+    column_types = {
+        'id': 'int64',
+        'is_police_officer': 'int64',
+        'is_police_family': 'int64',
+        'is_public': 'int64',
+        'uk_based': 'int64',
+        'us_based': 'int64',
+        'based_elsewhere': 'int64',
+        'hours_missing': 'int64',
+        'age': 'int64',
+        'time': 'category',
+        'sex': 'category',
+        'ethnicity': 'category',
+        'risk': 'category',
+        'model': 'category',
+        'predicted_risk': 'float64'
+    }
+    
+    for column, dtype in column_types.items():
+        if column in combined_df.columns:
+            try:
+                if dtype == 'category':
+                    combined_df[column] = combined_df[column].astype(dtype)
+                else:
+                    combined_df[column] = pd.to_numeric(combined_df[column], errors='raise').astype(dtype)
+            except (ValueError, TypeError):
+                print(f"Error converting column '{column}' to {dtype}. Removing invalid rows.")
+                combined_df = combined_df[pd.to_numeric(combined_df[column], errors='coerce').notnull()]
+        else:
+            print(f"Column '{column}' not found in DataFrame.")
+    
+    # Remove rows with NaN values after conversion
+    combined_df = combined_df.dropna()
+    
+    return combined_df
 
 
 def generate_prediction_count_table(df):
     df = df[['model', 'id']].copy()
     return df.groupby(['model']).count().reset_index().fillna(0).sort_values(by='id', ascending=True).set_index('model').rename(columns={'id': 'predictions'})
 
-
-def generate_analysis_table():
-    df = get_analysis_dataframe ()
-    mod = smf.ols(formula='risk_score ~ 0 + C(age) + C(time) + C(subject_ethnicity)*C(subject_sex)*C(llm_model)', data=df)
-    res = mod.fit()
-    return res.summary()
 
 def get_avg_risk_score_by_llm_and_variable(variable):
     valid_variables = {
@@ -215,11 +234,38 @@ def product_model_regression_outputs(df):
 
 
 def produce_human_only_regression(df):
-    model_df = df[df['model'] == 'human']
-    print('printing predicted risk')
-    print(model_df['predicted_risk'])
-    ols_model = smf.ols("predicted_risk ~ is_police_officer + is_police_family + is_public + us_based + based_elsewhere + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
-    return ols_model.summary()
+    model_df = df[df['model'] == 'human'].copy()
+    
+    # Check if 'predicted_risk' column exists
+    if 'predicted_risk' not in model_df.columns:
+        raise ValueError("Column 'predicted_risk' not found in the dataframe.")
+    
+    # Attempt to convert 'predicted_risk' to numeric, replacing non-numeric values with NaN
+    model_df['predicted_risk'] = pd.to_numeric(model_df['predicted_risk'], errors='coerce')
+    
+    # Identify rows with non-numeric values
+    non_numeric_rows = model_df[model_df['predicted_risk'].isna()]
+    
+    if not non_numeric_rows.empty:
+        print("Found non-numeric values in 'predicted_risk' column:")
+        for index, row in non_numeric_rows.iterrows():
+            print(f"Row {index}: {row['predicted_risk']}")
+        
+        # Remove rows with non-numeric values
+        model_df = model_df.dropna(subset=['predicted_risk'])
+        
+        if model_df.empty:
+            raise ValueError("No valid numeric data left in 'predicted_risk' column after removing non-numeric values.")
+    
+    # Proceed with the regression
+    try:
+        ols_model = smf.ols("predicted_risk ~ is_police_officer + is_police_family + is_public + us_based + based_elsewhere + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
+        return ols_model.summary()
+    except Exception as e:
+        print(f"Error during regression: {str(e)}")
+        print("DataFrame info:")
+        print(model_df.info())
+        raise
 
 def product_human_to_llm_regression(df):
     ols_model = smf.ols("predicted_risk ~ C(model, Treatment(reference='human')) + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=df).fit()
