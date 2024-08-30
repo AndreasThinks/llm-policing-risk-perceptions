@@ -35,7 +35,7 @@ def generate_effect_comparison_df():
 
 
     sql_query = """
-    SELECT human_submissions.id, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
+    SELECT human_submissions.id, human_submissions.is_police_officer as is_police_officer, human_submissions.is_police_family as is_police_family, human_submissions.is_public as is_public, human_submissions.is_uk as uk_based, human_submissions.is_us as us_based, human_submissions.is_elsewhere as based_elsewhere, scenarios.risk_description as risk, human_submissions.risk_score as human_risk_score, ages.age as age, times.time_str as time, sex.sex as sex, ethnicities.ethnicity as ethnicity, ai_submissions.risk_score as ai_risk_score, llms.model as llm_model
     FROM ai_submissions
     LEFT JOIN human_submissions ON ai_submissions.linked_human_submission = human_submissions.id
     LEFT JOIN ethnicities on human_submissions.ethnicity = ethnicities.id
@@ -61,6 +61,7 @@ def generate_effect_comparison_df():
 
     df = combined_df.copy()
     return df
+
 
 def generate_prediction_count_table(df):
     df = df[['model', 'id']].copy()
@@ -177,3 +178,12 @@ def product_model_regression_outputs(df):
             pass
     return regression_output_dict
 
+
+def produce_human_only_regression(df):
+    model_df = df[df['model'] == 'human']
+    ols_model = smf.ols("predicted_risk ~ is_police_officer + is_police_family + is_public + us_based + based_elsewhere + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=model_df).fit()
+    return ols_model.summary()
+
+def product_human_to_llm_regression(df):
+    ols_model = smf.ols("predicted_risk ~ C(model, Treatment(reference='human')) + C(risk, Treatment(reference='out_of_character')) + C(sex, Treatment(reference='female')) + C(age, Treatment(reference=25)) + C(hours_missing, Treatment(reference=8)) + C(ethnicity, Treatment(reference='White'))", data=df).fit()
+    return ols_model.summary()

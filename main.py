@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import product_model_regression_outputs,  generate_prediction_count_table, generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
+from analysis import produce_human_only_regression,  product_human_to_llm_regression, product_model_regression_outputs,  generate_prediction_count_table, generate_analysis_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -489,9 +489,20 @@ async def show_results():
                             Br(),
                             create_plotly_plot_div(risk_plot),
                             H3('Regression Analysis'),
+                            Div('We now generate a set of statistical regression models to try and understand the impact of different factors on the risk score prediction.'),
                             Br(),
-                            Div('For each model, we create a linear model, to try and understand the impact of different factors on the risk score prediction. The tables below show the results of these regressions.'),
+                            H4('Human Decision Making'),
+                            Div('This model examines only human decisions, including factors such as location and any policing affiliations.'),
                             Br(),
+                            NotStr(produce_human_only_regression(df).as_html()),
+                            Br(),
+                            H4('Comparing Humans to LLMs'),
+                            Div('This model examines compares models to human decision making overall.'),
+                            Br(),
+                            NotStr(product_human_to_llm_regression(df).as_html()),
+                            Br(),
+                            H4('Model by Model Regression'),
+                            Div('Finally we compare each model individually, and compare to the human baseline.'),
                             *all_regression_divs
                             )
     return results_page
