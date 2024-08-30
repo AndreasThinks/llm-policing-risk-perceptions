@@ -409,7 +409,7 @@ async def extract_results_parquet(request):
 
 @app.get("/admin/extract_results_csv")
 async def extract_results_csv(request):
-    results_df = get_results_dataframe()
+    results_df = generate_effect_comparison_df()
     
     # Create a StringIO object to store the CSV data
     csv_buffer = io.StringIO()
