@@ -13,7 +13,7 @@ from functools import wraps
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from analysis import produce_human_only_regression,  product_human_to_llm_regression, product_model_regression_outputs,  generate_prediction_count_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable
+from analysis import produce_human_only_regression,  product_human_to_llm_regression, product_model_regression_outputs,  generate_prediction_count_table, generate_effect_comparison_df, get_avg_risk_score_by_llm_and_variable, get_regression_by_variable, produce_regression_coefficient_table
 import time
 
 from fasthtml.authmw import user_pwd_auth
@@ -429,6 +429,28 @@ async def extract_results_csv(request):
         }
     )
 
+@app.get("/generate_model_coefficient_csv")
+async def get_coefficient_csv(request):
+    df = generate_effect_comparison_df()
+    coefficient_df = produce_regression_coefficient_table(df)
+
+    # Create a StringIO object to store the CSV data
+    csv_buffer = io.StringIO()
+    
+    # Write the DataFrame to the StringIO object in CSV format
+    coefficient_df.to_csv(csv_buffer)
+    
+    # Seek to the beginning of the StringIO object
+    csv_buffer.seek(0)
+    
+    # Create a StreamingResponse
+    return StreamingResponse(
+        iter([csv_buffer.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=coefficients.csv"
+        }
+    )
 
 
 
