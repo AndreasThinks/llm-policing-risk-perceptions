@@ -226,7 +226,7 @@ def product_model_regression_outputs(df):
             
             ols_model = smf.ols(formula, data=model_df).fit()
             regression_output_dict[model] = ols_model.summary()
-            
+
             print(f"INFO: Successfully fitted model for {model}")
 
         except PatsyError as e:
@@ -243,6 +243,74 @@ def product_model_regression_outputs(df):
             print(model_df)
 
     return regression_output_dict
+
+def produce_regression_coefficient_table(df):
+    model_list = df['model'].unique()
+    regression_output_dict = {}
+
+    all_coefficients_df = pd.DataFrame()
+
+    for model in model_list:
+        try:
+            model_df = df[df['model'] == model].copy()  # Create a copy to avoid SettingWithCopyWarning
+            
+            # Check for non-numeric values in predicted_risk
+            non_numeric_mask = pd.to_numeric(model_df['predicted_risk'], errors='coerce').isnull()
+            if non_numeric_mask.any():
+                non_numeric_count = non_numeric_mask.sum()
+                print(f"WARNING: Dropped {non_numeric_count} entries from {model} due to non-numeric values in predicted_risk")
+                print("Problematic entries:")
+                print(model_df[non_numeric_mask])
+                model_df = model_df[~non_numeric_mask]
+                model_df['predicted_risk'] = pd.to_numeric(model_df['predicted_risk'])
+
+            # Check for missing values in categorical variables
+            categorical_vars = ['risk', 'sex', 'age', 'hours_missing', 'ethnicity']
+            for var in categorical_vars:
+                missing_mask = model_df[var].isnull()
+                if missing_mask.any():
+                    missing_count = missing_mask.sum()
+                    print(f"WARNING: Dropped {missing_count} entries from {model} due to missing values in {var}")
+                    print("Problematic entries:")
+                    print(model_df[missing_mask])
+                    model_df = model_df[~missing_mask]
+
+            # Ensure all categorical variables are of type 'category'
+            for var in categorical_vars:
+                model_df[var] = model_df[var].astype('category')
+
+            # Fit the model
+            formula = ("predicted_risk ~ C(risk, Treatment(reference='out_of_character')) + "
+                       "C(sex, Treatment(reference='female')) + "
+                       "C(age, Treatment(reference=25)) + "
+                       "C(hours_missing, Treatment(reference=8)) + "
+                       "C(ethnicity, Treatment(reference='White'))")
+            
+            ols_model = smf.ols(formula, data=model_df).fit()
+            regression_output_dict[model] = ols_model.summary()
+
+            # create a table with with coefficients, p-values, and 95% conf intervals
+            coefficients_df = ols_model.summary2().tables[1]
+            print(coefficients_df)
+            coefficients_df['model'] = model
+            all_coefficients_df = pd.concat([all_coefficients_df, coefficients_df])
+            
+            print(f"INFO: Successfully fitted model for {model}")
+
+        except PatsyError as e:
+            print(f"ERROR: PatsyError occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
+        except ValueError as e:
+            print(f"ERROR: ValueError occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
+        except Exception as e:
+            print(f"ERROR: Unexpected error occurred for model {model}: {str(e)}")
+            print("Problematic dataframe:")
+            print(model_df)
+
+    return all_coefficients_df
 
 
 def produce_human_only_regression(df):
